@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package calculator.v1;
+
+// 计算器服务
+service Calculator {
+  // 加法
+  rpc Add(CalcRequest) returns (CalcResponse);
+
+  // 减法
+  rpc Subtract(CalcRequest) returns (CalcResponse);
+
+  // 乘法
+  rpc Multiply(CalcRequest) returns (CalcResponse);
+
+  // 除法
+  rpc Divide(CalcRequest) returns (CalcResponse);
+
+  // 健康检查
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// 计算请求
+message CalcRequest {
+  double a = 1;  // 操作数 A
+  double b = 2;  // 操作数 B
+}
+
+// 计算响应
+message CalcResponse {
+  double result = 1;  // 计算结果
+}
+
+// 健康检查请求
+message HealthRequest {
+  string message = 1;
+}
+
+// 健康检查响应
+message HealthResponse {
+  string status = 1;
+  string message = 2;
+}

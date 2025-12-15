@@ -1,0 +1,35 @@
+[package]
+name = "calculator-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# gRPC-Mesh 框架（本地引用，实际使用时改为 crates.io 或 git）
+grpc-mesh = { path = "../../grpc-mesh-node" }
+
+# gRPC 相关 (必须与 grpc-mesh 版本一致)
+tonic = { version = "0.14.2", features = ["transport"] }
+prost = "0.14.1"
+tonic-prost = "0.14.2"
+
+# 异步运行时
+tokio = { version = "1.48", features = ["full"] }
+futures = "0.3"
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+
+# 配置管理
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# 其他
+anyhow = "1.0"
+
+[build-dependencies]
+tonic-prost-build = "0.14.2"
+
+[[bin]]
+name = "calculator-service"
+path = "src/main.rs"

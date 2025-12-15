@@ -1,0 +1,42 @@
+# Calculator Client Configuration
+# This config embeds grpc-mesh-server settings plus application-specific settings
+
+# Application-specific settings
+app:
+  # HTTP API server listen address
+  listen_address: ":8080"
+  # Default target node ID for calculator service
+  target_node_id: "calculator-service"
+
+# Embedded gRPC Mesh Server Configuration (mirrors grpc-mesh-server/config/config.yaml)
+server:
+  grpc_address: ":50051"
+  metrics_address: ":9090"
+  heartbeat_interval: "15s"
+  invoke_timeout: "30s"
+
+listener:
+  address: ":8443"
+  tls_cert_path: "../../grpc-mesh-server/config/tls/server-chain.crt"
+  tls_key_path: "../../grpc-mesh-server/config/tls/server.key"
+  ca_file: "" # Empty string disables mTLS (client cert verification)
+  prefer_server_cipher_suites: true
+
+tunnel:
+  accept_backlog: 128
+  enable_keepalive: true
+  max_stream_window: 1048576
+  keepalive_interval: "30s"
+  keepalive_timeout: "90s"
+
+security:
+  require_token: true
+  allowed_tokens:
+    # Example tokens; generate with: make token in grpc-mesh-server/
+    - "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"
+    - "waemu_TmpNextRotationToken"
+  node_whitelist: []
+  handshake_deadline: "5s"
+
+observability:
+  log_level: "info"

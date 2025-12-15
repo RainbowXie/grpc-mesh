@@ -1,0 +1,37 @@
+# Documentation (generated/duplicated)
+API_REFERENCE.md
+DOCUMENTATION_INDEX.md
+EXAMPLES.md
+FRAMEWORK_SUMMARY.md
+INTEGRATION_GUIDE.md
+QUICK_START.md
+ROADMAP.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build artifacts from demos
+demos/*/target/
+demos/*/Cargo.lock
+demos/*/*.token
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Git submodule state (optional - keep if you want to track submodule changes)
+# Uncomment if you don't want to track submodule commits:
+# grpc-mesh-node
+# grpc-mesh-server

@@ -1,0 +1,10 @@
+# Rust Analyzer Configuration for Calculator Service
+
+# Ensure build scripts are run before analysis
+[build]
+buildScripts.enable = true
+buildScripts.overrideCommand = ["cargo", "check", "--message-format=json"]
+
+# Use cargo check for faster analysis
+[check]
+command = "check"

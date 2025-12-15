@@ -1,0 +1,12 @@
+{
+  "server": {
+    "address": "127.0.0.1:8443",
+    "tls": {
+      "server_name": "localhost"
+    }
+  },
+  "node": {
+    "id": "calculator-service",
+    "token": "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"
+  }
+}
