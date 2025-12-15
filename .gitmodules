@@ -1,0 +1,8 @@
+[submodule "grpc-mesh-node"]
+	path = grpc-mesh-node
+	url = https://github.com/YOUR_USERNAME/grpc-mesh-node.git
+	branch = main
+[submodule "grpc-mesh-server"]
+	path = grpc-mesh-server
+	url = https://github.com/YOUR_USERNAME/grpc-mesh-server.git
+	branch = main
