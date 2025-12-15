@@ -208,10 +208,10 @@ func (h *CalculatorHandler) ListNodes(c *gin.Context) {
 	nodes := make([]gin.H, 0, len(sessions))
 	for _, sess := range sessions {
 		nodes = append(nodes, gin.H{
-			"node_id":        string(sess.ID),
+			"node_id":        string(sess.PeerID),
 			"version":        sess.Handshake.Version,
-			"features":       sess.Features,
-			"metadata":       sess.Metadata,
+			"features":       sess.Handshake.Features,
+			"metadata":       sess.Handshake.Metadata,
 			"connected_at":   sess.ConnectedAt,
 			"last_heartbeat": sess.LastHeartbeat,
 		})

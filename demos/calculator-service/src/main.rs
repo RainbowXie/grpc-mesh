@@ -8,8 +8,12 @@ use std::env;
 use std::fs;
 use std::time::Duration;
 
+use grpc_mesh::rpc::InvokeService;
 use grpc_mesh::tunnel::{ConnectorConfig, Handshake, TunnelConnector};
+use grpc_mesh::{MethodRegistry, RpcResult};
+use prost::Message;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::watch;
 use tonic::{transport::Server, Request, Response, Status};
 use tracing::{error, info, warn};
@@ -19,10 +23,8 @@ pub mod calculator {
     tonic::include_proto!("calculator.v1");
 }
 
-use calculator::{
-    calculator_server::{Calculator, CalculatorServer},
-    CalcRequest, CalcResponse, HealthRequest, HealthResponse,
-};
+use calculator::{CalcRequest, CalcResponse, HealthRequest, HealthResponse};
+use calculator::calculator_server::Calculator;
 
 /// 配置文件结构
 #[derive(Debug, Deserialize, Serialize)]
@@ -257,8 +259,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("🌐 Yamux multiplexing enabled");
     info!("🚀 Calculator Service is now listening through the reverse tunnel");
     info!("💡 Note: No local port is exposed - all traffic comes through the tunnel");
-    // 创建 gRPC 服务
-    let calculator_service = CalculatorServer::new(CalculatorService);
+
+    // 创建 MethodRegistry 并注册所有方法
+    let registry = MethodRegistry::default();
+    register_calculator_methods(&registry);
+    info!("✅ Registered Calculator methods in MethodRegistry");
+
+    // 创建 InvokeService（实现 InvokePlane gRPC 服务）
+    let invoke_service = InvokeService::new(registry).into_server();
 
     // 设置 shutdown 信号处理
     let shutdown_handle = shutdown_tx.clone();
@@ -274,7 +282,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("✨ Ready to handle requests");
 
     if let Err(e) = Server::builder()
-        .add_service(calculator_service)
+        .add_service(invoke_service)
         .serve_with_incoming(incoming)
         .await
     {
@@ -284,4 +292,92 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("👋 Calculator Service shut down gracefully");
     Ok(())
+}
+
+/// 注册所有 Calculator 方法到 MethodRegistry
+fn register_calculator_methods(registry: &MethodRegistry) {
+    // calculator.v1.Calculator/Add
+    registry.register(
+        "calculator.v1.Calculator/Add",
+        Arc::new(|payload: Vec<u8>| -> RpcResult<Vec<u8>> {
+            let req = CalcRequest::decode(&payload[..])
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("decode error: {}", e)))?;
+            let result = req.a + req.b;
+            info!("Add: {} + {} = {}", req.a, req.b, result);
+            let resp = CalcResponse { result };
+            let mut buf = Vec::new();
+            resp.encode(&mut buf)
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("encode error: {}", e)))?;
+            Ok(buf)
+        }),
+    );
+
+    // calculator.v1.Calculator/Subtract
+    registry.register(
+        "calculator.v1.Calculator/Subtract",
+        Arc::new(|payload: Vec<u8>| -> RpcResult<Vec<u8>> {
+            let req = CalcRequest::decode(&payload[..])
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("decode error: {}", e)))?;
+            let result = req.a - req.b;
+            info!("Subtract: {} - {} = {}", req.a, req.b, result);
+            let resp = CalcResponse { result };
+            let mut buf = Vec::new();
+            resp.encode(&mut buf)
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("encode error: {}", e)))?;
+            Ok(buf)
+        }),
+    );
+
+    // calculator.v1.Calculator/Multiply
+    registry.register(
+        "calculator.v1.Calculator/Multiply",
+        Arc::new(|payload: Vec<u8>| -> RpcResult<Vec<u8>> {
+            let req = CalcRequest::decode(&payload[..])
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("decode error: {}", e)))?;
+            let result = req.a * req.b;
+            info!("Multiply: {} * {} = {}", req.a, req.b, result);
+            let resp = CalcResponse { result };
+            let mut buf = Vec::new();
+            resp.encode(&mut buf)
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("encode error: {}", e)))?;
+            Ok(buf)
+        }),
+    );
+
+    // calculator.v1.Calculator/Divide
+    registry.register(
+        "calculator.v1.Calculator/Divide",
+        Arc::new(|payload: Vec<u8>| -> RpcResult<Vec<u8>> {
+            let req = CalcRequest::decode(&payload[..])
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("decode error: {}", e)))?;
+            if req.b == 0.0 {
+                return Err(grpc_mesh::RpcError::Internal("Division by zero".to_string()));
+            }
+            let result = req.a / req.b;
+            info!("Divide: {} / {} = {}", req.a, req.b, result);
+            let resp = CalcResponse { result };
+            let mut buf = Vec::new();
+            resp.encode(&mut buf)
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("encode error: {}", e)))?;
+            Ok(buf)
+        }),
+    );
+
+    // calculator.v1.Calculator/Health
+    registry.register(
+        "calculator.v1.Calculator/Health",
+        Arc::new(|payload: Vec<u8>| -> RpcResult<Vec<u8>> {
+            let req = HealthRequest::decode(&payload[..])
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("decode error: {}", e)))?;
+            info!("Health check: {}", req.message);
+            let resp = HealthResponse {
+                status: "OK".to_string(),
+                message: format!("Calculator Service is healthy. Echo: {}", req.message),
+            };
+            let mut buf = Vec::new();
+            resp.encode(&mut buf)
+                .map_err(|e| grpc_mesh::RpcError::Internal(format!("encode error: {}", e)))?;
+            Ok(buf)
+        }),
+    );
 }

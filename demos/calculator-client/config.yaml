@@ -17,8 +17,8 @@ server:
 
 listener:
   address: ":8443"
-  tls_cert_path: "../../grpc-mesh-server/config/tls/server-chain.crt"
-  tls_key_path: "../../grpc-mesh-server/config/tls/server.key"
+  cert_file: "../../grpc-mesh-server/config/tls/server-chain.crt"
+  key_file: "../../grpc-mesh-server/config/tls/server.key"
   ca_file: "" # Empty string disables mTLS (client cert verification)
   prefer_server_cipher_suites: true
 
