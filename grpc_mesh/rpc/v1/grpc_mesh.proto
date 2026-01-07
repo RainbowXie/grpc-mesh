@@ -12,8 +12,13 @@ message PeerMetadata {
   map<string, string> attributes = 4;
 }
 
-// RegisterAck acknowledges peer registration.
-message RegisterAck {
+// RegisterPeerRequest wraps the metadata for registration.
+message RegisterPeerRequest {
+  PeerMetadata metadata = 1;
+}
+
+// RegisterPeerResponse acknowledges peer registration.
+message RegisterPeerResponse {
   bool accepted = 1;
   string assigned_id = 2;
   string reason = 3;
@@ -67,21 +72,41 @@ message InvokeResponse {
   uint64 elapsed_ms = 7;
 }
 
+// InvokeStreamRequest is the request type for the InvokeStream RPC.
+message InvokeStreamRequest {
+  string peer_id = 1;
+  string method = 2;
+  bytes payload = 3;
+  string correlation_id = 4;
+  uint32 timeout_ms = 5;
+}
+
+// InvokeStreamResponse is the response type for the InvokeStream RPC.
+message InvokeStreamResponse {
+  string peer_id = 1;
+  string method = 2;
+  bytes result = 3;
+  bool success = 4;
+  ErrorDetail error = 5;
+  string correlation_id = 6;
+  uint64 elapsed_ms = 7;
+}
+
 message ErrorDetail {
   string code = 1;
   string message = 2;
   bytes details = 3;
 }
 
-// ControlPlane handles peer lifecycle.
-service ControlPlane {
-  rpc RegisterPeer(PeerMetadata) returns (RegisterAck);
+// ControlPlaneService handles peer lifecycle.
+service ControlPlaneService {
+  rpc RegisterPeer(RegisterPeerRequest) returns (RegisterPeerResponse);
   rpc Heartbeat(stream HeartbeatRequest) returns (stream HeartbeatResponse);
   rpc UpdateMethods(UpdateMethodsRequest) returns (UpdateMethodsResponse);
 }
 
-// InvokePlane handles reverse RPC invocations.
-service InvokePlane {
+// InvokePlaneService handles reverse RPC invocations.
+service InvokePlaneService {
   rpc Invoke(InvokeRequest) returns (InvokeResponse);
-  rpc InvokeStream(stream InvokeRequest) returns (stream InvokeResponse);
+  rpc InvokeStream(stream InvokeStreamRequest) returns (stream InvokeStreamResponse);
 }
