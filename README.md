@@ -18,6 +18,7 @@
 - **[Go Server API](grpc-mesh-server/docs/API.md)** - 控制平面 API 详细文档
 - **[Rust Node API](grpc-mesh-node/docs/API.md)** - 节点 SDK API 详细文档
 - **[Demo 应用](demos/README.md)** - Calculator 演示应用
+- **[Python Binding](bindings/python/)** - Python 进程内承载控制平面（c-shared 库）
 
 ---
 

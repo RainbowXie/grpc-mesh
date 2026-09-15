@@ -35,3 +35,8 @@ demos/*/*.token
 # Uncomment if you don't want to track submodule commits:
 # grpc-mesh-node
 # grpc-mesh-server
+
+# python binding build artifacts
+bindings/python/grpc_mesh/_native/**/libmesh.so
+bindings/python/build/
+bindings/python/*.egg-info/

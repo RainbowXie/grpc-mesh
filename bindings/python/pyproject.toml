@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grpc-mesh"
+version = "0.1.0"
+description = "Python binding for gRPC-Mesh: embed the control plane via the c-shared library"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/RainbowXie/grpc-mesh"
+
+[tool.setuptools.packages.find]
+include = ["grpc_mesh*"]
+
+[tool.setuptools.package-data]
+grpc_mesh = ["_native/*/libmesh.so", "_native/README.md"]
