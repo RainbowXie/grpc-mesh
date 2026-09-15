@@ -58,7 +58,7 @@ with MeshServer(config) as mesh:
         calc_response_bytes = result.result
 ```
 
-完整示例见 `examples/calculator.py`（零依赖手编 protobuf 字节演示 10+5）。
+完整可运行示例与分主题示例文档见 [examples/](examples/README.md)（含参数编码、错误三分法、多线程与常见错误对照）。
 
 ## API 摘要
 

@@ -1,15 +1,20 @@
-"""Minimal calculator demo: embed the mesh control plane in Python and
-invoke the Rust calculator-service node over the tunnel.
+"""Turnkey example: embed the mesh control plane in Python and invoke the
+Rust calculator-service node.
 
-Prerequisites:
-  1. Build and place libmesh.so (see bindings/python/README.md).
-  2. Have the Rust demo node running against the listener address below:
-     cd demos/calculator-service
-     CONFIG_PATH=... CA_CERT_PATH=... cargo run
+Run it next to a running demo node (repository certificates and the
+node's defaults all line up):
+
+    # terminal 1 — the Rust demo node (uses repo TLS + its config.json)
+    cd demos/calculator-service
+    cargo run
+
+    # terminal 2 — this example (server listens on 127.0.0.1:8443)
+    cd bindings/python
+    python3 examples/calculator.py
 
 The protobuf encoding of CalcRequest{a, b} / CalcResponse{result} is done
-by hand below (field 1/2 doubles, wire type 1) to keep the example
-dependency-free; use the `protobuf` package in real code.
+by hand below (doubles, wire type 1) to keep the example dependency-free;
+see examples/README.md for the `protobuf`-package version.
 """
 
 from __future__ import annotations
@@ -17,48 +22,63 @@ from __future__ import annotations
 import struct
 import sys
 import time
+from pathlib import Path
 
 from grpc_mesh import MeshServer
 
-TUNNEL_PORT = 18443
+# Repository layout: examples/ lives at bindings/python/examples.
+REPO_TLS = Path(__file__).resolve().parents[3] / "grpc-mesh-server" / "config" / "tls"
+
 NODE_ID = "calculator-service"
+# Must match demos/calculator-service/config/config.json (node.token).
+NODE_TOKEN = "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"
 
 
 def encode_calc_request(a: float, b: float) -> bytes:
+    # CalcRequest{ double a = 1; double b = 2; }
     return b"\x09" + struct.pack("<d", a) + b"\x11" + struct.pack("<d", b)
 
 
 def decode_calc_response(data: bytes) -> float:
-    # field 1 (result), wire type 1: tag 0x09 + 8 bytes little-endian double
+    # CalcResponse{ double result = 1; }
     assert data[0] == 0x09 and len(data) >= 9, f"unexpected payload: {data!r}"
     return struct.unpack("<d", data[1:9])[0]
 
 
 def main() -> int:
     config = {
-        "server": {"grpc_address": "127.0.0.1:150051", "metrics_address": "127.0.0.1:19090"},
-        "listener": {"address": f"127.0.0.1:{TUNNEL_PORT}"},
-        # If you bring your own certs:
-        # "listener": {"address": ..., "cert_file": "...", "key_file": "..."},
+        # Ports only used by this embedded server; the node only needs the
+        # listener address below to match its config.json.
+        "server": {"grpc_address": "127.0.0.1:50061", "metrics_address": "127.0.0.1:19061"},
+        "listener": {
+            "address": "127.0.0.1:8443",
+            # The node verifies the server against config/tls/ca.crt; leaving
+            # cert/key out would generate an ephemeral cert the node cannot
+            # verify.
+            "cert_file": str(REPO_TLS / "server-chain.crt"),
+            "key_file": str(REPO_TLS / "server.key"),
+        },
         "auth": {
             "enabled": True,
-            "node_tokens": {NODE_ID: "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"},
+            # Token is bound to the node id: the demo node is only accepted
+            # when it both holds this token and claims NODE_ID.
+            "node_tokens": {NODE_ID: NODE_TOKEN},
         },
     }
 
     with MeshServer(config) as mesh:
-        print("mesh control plane started, waiting for node ...")
+        print("mesh control plane on 127.0.0.1:8443, waiting for node ...")
         for _ in range(50):
             nodes = mesh.list_nodes()
             if any(n["node_id"] == NODE_ID for n in nodes):
                 break
             time.sleep(0.2)
         else:
-            print(f"node {NODE_ID} never connected")
+            print(f"node {NODE_ID} never connected; is calculator-service running?")
             return 1
 
         for node in nodes:
-            print(f"node {node['node_id']} methods={node['methods']}")
+            print(f"node {node['node_id']}: methods={node['methods']}")
 
         result = mesh.invoke(
             NODE_ID,
