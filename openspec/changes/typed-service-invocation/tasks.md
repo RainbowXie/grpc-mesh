@@ -25,5 +25,5 @@
 
 ## 5. 收尾
 
-- [ ] 5.1 分仓提交：server 子模块一个 commit；父仓库 demos + 本 change 一个 commit；推送并更新父仓子模块指针
-- [ ] 5.2 `openspec validate typed-service-invocation` 通过，`openspec archive` 待验收确认后执行
+- [x] 5.1 分仓提交：server 子模块一个 commit；父仓库 demos + 本 change 一个 commit；推送并更新父仓子模块指针
+- [x] 5.2 `openspec validate typed-service-invocation` 通过，`openspec archive` 待验收确认后执行
