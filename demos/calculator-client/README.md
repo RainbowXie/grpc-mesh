@@ -36,7 +36,7 @@ curl -X POST http://localhost:8080/calculate \
 ```
 ## Configuration File
 
-The client reads configuration from `config.yaml`:
+The client reads configuration from `config.yaml`（经 `CONFIG_PATH` 环境变量可覆盖路径）:
 
 ```yaml
 # Application-specific settings
@@ -45,56 +45,69 @@ app:
   target_node_id: "calculator-service"
 
 # Embedded gRPC Mesh Server Configuration
+# 以下键与 grpc-mesh-server 的 pkg/config 读取的 schema 一致
 server:
   grpc_address: ":50051"
   metrics_address: ":9090"
-  heartbeat_interval: "15s"
-  invoke_timeout: "30s"
 
 listener:
   address: ":8443"
-  tls_cert_path: "../../grpc-mesh-server/config/tls/server-chain.crt"
-  tls_key_path: "../../grpc-mesh-server/config/tls/server.key"
-  ca_file: ""  # Empty string disables mTLS (client cert verification)
-  prefer_server_cipher_suites: true
+  cert_file: "../../grpc-mesh-server/config/tls/server-chain.crt"
+  key_file: "../../grpc-mesh-server/config/tls/server.key"
+  ca_file: ""  # 留空禁用 mTLS（客户端证书校验）
 
-tunnel:
-  accept_backlog: 128
-  enable_keepalive: true
-  max_stream_window: 1048576
-  keepalive_interval: "30s"
-  keepalive_timeout: "90s"
+logging:
+  level: "info"
 
-security:
-  require_token: true
-  allowed_tokens:
-    - "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"
-  node_whitelist: []
-  handshake_deadline: "5s"
-
-observability:
-  log_level: "info"
+auth:
+  enabled: true
+  # 每节点独立令牌：demo 节点只有同时声明 node id "calculator-service"
+  # 且持有该令牌才会被接受
+  node_tokens:
+    calculator-service: "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"
 ```
 
 **Important Notes:**
-- This format is **identical** to `grpc-mesh-server/config/config.yaml`, with an additional `app` section for application-specific settings.
-- `ca_file: ""` disables mTLS (mutual TLS). Set it to a CA cert path if you want to verify client certificates.
-- Configuration is loaded using the same `config.Load()` function as grpc-mesh-server, ensuring consistency.
+- 配置由与 grpc-mesh-server 相同的 `config.Load()` 加载，`server`/`listener`/`logging`/`auth` 键为其真实 schema；环境变量可覆盖（如 `SERVER_GRPC_ADDRESS`、`LISTENER_ADDRESS`）。
+- `auth.node_tokens` 把令牌绑定到节点身份；旧的 `security.allowed_tokens` 等键当前代码不读取。
+- `ca_file: ""` disables mTLS. Set it to a CA cert path if you want to verify client certificates.
 
 ## API 端点
 
-### POST /calculate
+### POST /calculate（通用 Invoke 分发路径）
+
 ```bash
 curl -X POST http://localhost:8080/calculate \
+  -H 'Content-Type: application/json' \
   -d '{"operation": "add", "a": 10, "b": 5}'
 # {"result": 15}
 ```
 
+### POST /calculate-typed（类型化 gRPC 直调路径）
+
+不经 `Invoke(method, payload)` 字符串分发，而是 `Gateway.Dial` 取得 gRPC 连接后用生成的 `CalculatorClient` 直接调用节点上的 `calculator.v1.Calculator` 服务。错误保留 gRPC 状态语义：
+
+```bash
+curl -X POST http://localhost:8080/calculate-typed \
+  -H 'Content-Type: application/json' \
+  -d '{"operation": "add", "a": 10, "b": 5}'
+# {"result": 15}
+
+curl -X POST http://localhost:8080/calculate-typed \
+  -H 'Content-Type: application/json' \
+  -d '{"operation": "divide", "a": 1, "b": 0}'
+# {"error":"rpc error: code = InvalidArgument desc = Division by zero"}
+```
+
 ### GET /nodes
+
 ```bash
 curl http://localhost:8080/nodes
-# {"total": 1, "nodes": [...]}
+# {"total": 1, "nodes": [{"node_id": "calculator-service",
+#   "methods": ["calculator.v1.Calculator/Add", "..."], ...}]}
 ```
+
+`methods` 来自节点握手时上报的方法清单（metadata 键 `mesh.methods`）。
 
 ### GET /health
 ```bash
@@ -112,18 +125,21 @@ import (
     "github.com/grpc-mesh/grpc-mesh-server/pkg/server"
 )
 
-// 配置 mesh
+// 配置 mesh（字段与 config.yaml 的 schema 一一对应）
 meshCfg := &config.Config{
     Server: config.ServerConfig{
-        GRPCAddress: ":50051",
-        InvokeTimeout: 30 * time.Second,
+        GRPCAddress:    ":50051",
+        MetricsAddress: ":9090",
     },
     Listener: config.ListenerConfig{
-        Address: ":8443",
-        TLSCertPath: "tls/server-chain.crt",
-        TLSKeyPath: "tls/server.key",
+        Address:  ":8443",
+        CertFile: "tls/server-chain.crt",
+        KeyFile:  "tls/server.key",
     },
-    // ...
+    Auth: config.AuthConfig{
+        Enabled:    true,
+        NodeTokens: map[string]string{"calculator-service": "waemu_..."},
+    },
 }
 
 // 创建并启动
@@ -133,6 +149,8 @@ defer meshServer.Stop()
 ```
 
 ### 2. 调用节点
+
+通用分发路径（方法名字符串 + protobuf 编码的 payload 字节）：
 
 ```go
 import (
@@ -144,14 +162,27 @@ import (
 gateway := meshServer.ReverseGateway()
 
 // 调用
-resp, err := gateway.Invoke(ctx, 
+resp, err := gateway.Invoke(ctx,
     registry.PeerID("calculator-service"),
     &rpc.InvokeRequest{
-        PeerId: "calculator-service",
-        Method: "calculator.v1.Calculator/Add",
-        Payload: payload,
+        PeerId:  "calculator-service",
+        Method:  "calculator.v1.Calculator/Add",
+        Payload: payload, // proto.Marshal(&pb.CalcRequest{A: 10, B: 5})
         TimeoutMs: 5000,
     })
+```
+
+类型化直调路径（`Gateway.Dial` + 按 proto 生成的客户端代码）：
+
+```go
+// 连接建立在节点会话的一条 yamux 流上，用完必须 Close
+conn, err := gateway.Dial(ctx, registry.PeerID("calculator-service"))
+if err != nil { /* 节点未注册 */ }
+defer conn.Close()
+
+client := pb.NewCalculatorClient(conn)
+resp, err := client.Add(ctx, &pb.CalcRequest{A: 10, B: 5})
+// err 保留 gRPC 状态：节点返回 invalid_argument 时为 InvalidArgument
 ```
 
 ### 3. 查询节点

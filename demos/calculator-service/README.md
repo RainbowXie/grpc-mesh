@@ -6,9 +6,12 @@ Rust 服务节点示例，展示如何使用 `grpc-mesh-node` 库连接到控制
 
 - 🦀 **Rust + Tonic**：高性能 gRPC 服务实现
 - 🔄 **反向隧道**：主动连接控制平面，无需公网 IP
-- 🔐 **TLS 加密**：安全的双向认证
-- 📊 **自动重连**：网络断开时自动重连
+- 🔀 **双调用路径**：类型化 `Calculator` 服务（proto 定义，server 侧用生成客户端直调）与通用 `Invoke` 字符串分发并存
+- 📋 **方法上报**：握手时随 metadata（`mesh.methods`）上报方法清单，控制平面 `/nodes` 可查
+- 🔐 **TLS 加密**：CA 证书验证服务端
 - 📝 **配置灵活**：支持配置文件或环境变量
+
+> 注意：连接阶段（`connect_with_backoff`）带指数退避自动重试；隧道**建立后**断线本 demo 会退出，长驻重连参见 `grpc-mesh-node/src/bin/reverse_gateway.rs` 的监督循环。
 
 ## 架构
 
@@ -204,24 +207,27 @@ use grpc_mesh::tunnel::{ConnectorConfig, Handshake, TunnelConnector};
 // 创建连接器配置
 let connector_config = ConnectorConfig {
     server_addr: config.server.address.clone(),
-    ca_certs: vec![ca_cert_pem],
+    ca_certs: vec![ca_cert_pem], // PEM 原始字节
     sni: None,
     connect_timeout: Duration::from_secs(10),
     max_backoff: Duration::from_secs(30),
+    heartbeat_interval: Duration::from_secs(15),
+    insecure_skip_verify: false,
 };
 
 // 创建连接器
 let mut connector = TunnelConnector::new(connector_config, shutdown_rx)?;
 
-// 构建握手信息
+// 构建握手信息（mesh.methods：方法清单随握手上报）
 let handshake = Handshake::builder(&config.node.id, "1.0.0")
     .token(config.node.token)
     .add_feature("grpc")
     .add_feature("calculator")
+    .metadata_entry("mesh.methods", reported_methods)
     .build()?;
 
-// 建立隧道连接（带自动重连）
-let mut tunnel = connector.connect_with_backoff(handshake).await?;
+// 建立隧道连接（连接阶段带退避重试，心跳自动发送）
+let incoming = connector.connect_with_backoff(handshake).await?;
 ```
 
 ### 3. 实现 gRPC 服务
@@ -260,21 +266,19 @@ impl Calculator for CalculatorService {
 }
 ```
 
-### 4. 启动服务
+### 4. 启动服务（类型化 + 通用分发并列挂载）
 
 ```rust
 use tonic::transport::Server;
 use calculator::calculator_server::CalculatorServer;
+use grpc_mesh::rpc::InvokeService;
 
-// 获取 incoming stream adapter
-let incoming = tunnel.take_incoming().ok_or("Failed to get incoming")?;
-
-// 创建 gRPC 服务
-let calculator_service = CalculatorServer::new(CalculatorService);
-
-// 通过隧道提供服务
+// 类型化服务与通用分发服务挂同一个 tonic 服务器，按 gRPC 路径共存：
+//   /calculator.v1.Calculator/Add      → 类型化（server 侧生成客户端直调）
+//   /grpc_mesh.rpc.v1.InvokePlaneService/Invoke → 通用字符串分发
 Server::builder()
-    .add_service(calculator_service)
+    .add_service(CalculatorServer::new(CalculatorService))
+    .add_service(InvokeService::new(registry).into_server())
     .serve_with_incoming(incoming)
     .await?;
 ```

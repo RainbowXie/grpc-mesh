@@ -226,6 +226,12 @@ curl -X POST http://localhost:8080/calculate \
   -d '{"operation": "multiply", "a": 7, "b": 6}'
 # 返回: {"result":42}
 
+# 类型化路径（Gateway.Dial + 生成客户端直调，不经通用 Invoke 分发）
+curl -X POST http://localhost:8080/calculate-typed \
+  -H 'Content-Type: application/json' \
+  -d '{"operation": "add", "a": 10, "b": 5}'
+# 返回: {"result":15}
+
 # 健康检查
 curl http://localhost:8080/health
 # 返回: {"status":"healthy","message":"..."}
@@ -257,11 +263,15 @@ listener:
   key_file: "../../grpc-mesh-server/config/tls/server.key"
   ca_file: ""                 # 可选，启用 mTLS
 
-# 安全配置
-security:
-  require_token: true
-  allowed_tokens:
-    - "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"
+# 日志与认证（现行 schema：pkg/config 读取的键）
+logging:
+  level: "info"
+
+auth:
+  enabled: true
+  # 每节点独立令牌：token 与 node_id 绑定校验
+  node_tokens:
+    calculator-service: "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"
 ```
 
 ### Calculator Service 配置
@@ -297,7 +307,9 @@ export CA_CERT_PATH="/path/to/ca.crt"
 
 ### InvokePlane gRPC Service
 
-所有 mesh 节点必须实现 InvokePlane 服务。
+通用调用通道：节点经 `MethodRegistry` 注册方法，控制平面以 `Invoke(method, payload)` 调用。
+节点也可以在同一条隧道上直接提供 proto 定义的类型化 gRPC 服务（见 calculator-service demo），
+控制平面侧用 `Gateway.Dial` + 生成的客户端代码直调。
 
 ```protobuf
 service InvokePlane {

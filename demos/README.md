@@ -82,7 +82,13 @@ curl -X POST http://localhost:8080/calculate \
   -d '{"operation": "add", "a": 10, "b": 5}'
 # 输出: {"result":15}
 
-# 查看已连接节点
+# 类型化路径（Gateway.Dial + 生成客户端直调，不经通用 Invoke 分发）
+curl -X POST http://localhost:8080/calculate-typed \
+  -H 'Content-Type: application/json' \
+  -d '{"operation": "add", "a": 10, "b": 5}'
+# 输出: {"result":15}
+
+# 查看已连接节点（含节点上报的方法清单 methods）
 curl http://localhost:8080/nodes
 
 # 健康检查
@@ -128,8 +134,9 @@ resp, _ := gateway.Invoke(ctx, registry.PeerID(nodeID), invokeReq)
 ```
 
 **API 端点：**
-- `POST /calculate` - 执行计算
-- `GET /nodes` - 列出已连接节点
+- `POST /calculate` - 执行计算（通用 Invoke 分发路径）
+- `POST /calculate-typed` - 执行计算（类型化 gRPC 直调路径）
+- `GET /nodes` - 列出已连接节点（含上报的方法清单）
 - `GET /health` - 健康检查
 - `GET /` - API 文档
 
@@ -346,7 +353,13 @@ lsof -i :50051
 
 **解决：**
 ```bash
-# 查看已连接节点
+# 类型化路径（Gateway.Dial + 生成客户端直调，不经通用 Invoke 分发）
+curl -X POST http://localhost:8080/calculate-typed \
+  -H 'Content-Type: application/json' \
+  -d '{"operation": "add", "a": 10, "b": 5}'
+# 输出: {"result":15}
+
+# 查看已连接节点（含节点上报的方法清单 methods）
 curl http://localhost:8080/nodes
 
 # 检查 calculator-service 日志

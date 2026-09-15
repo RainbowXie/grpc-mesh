@@ -27,3 +27,10 @@
 
 - [x] 5.1 分仓提交：server 子模块一个 commit；父仓库 demos + 本 change 一个 commit；推送并更新父仓子模块指针
 - [x] 5.2 `openspec validate typed-service-invocation` 通过，`openspec archive` 待验收确认后执行
+
+## 6. 接入文档对齐（实现后补充）
+
+- [x] 6.1 `grpc-mesh-node/docs/API.md` 按真实 API 全量重写（原文档描述的 `wa_emu_rs::ReverseGateway` 等 API 不存在于代码中）
+- [x] 6.2 `grpc-mesh-server/docs/API.md` 新增 Gateway 章节（Invoke 通用分发 / Dial 类型化直调 / Methods 查询）
+- [x] 6.3 两个 demo README：config schema 对齐（auth.node_tokens）、/calculate-typed、方法上报、双路径挂载示例；修正"自动重连"的过度声明
+- [x] 6.4 主 README 与 demos/README.md：快速开始补 /calculate-typed、配置示例换现行 schema、InvokePlane 章节补类型化路径说明
