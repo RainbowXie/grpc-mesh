@@ -33,10 +33,12 @@ type AppSettings struct {
 }
 
 // CalculateRequest HTTP 请求
+// 注意：a/b 不加 binding:"required"——validator 会把数值 0 当成零值拒绝，
+// 导致除零等合法输入（b=0）无法到达服务端。
 type CalculateRequest struct {
 	Operation string  `json:"operation" binding:"required"`
-	A         float64 `json:"a" binding:"required"`
-	B         float64 `json:"b" binding:"required"`
+	A         float64 `json:"a"`
+	B         float64 `json:"b"`
 }
 
 // CalculateResponse HTTP 响应
@@ -150,6 +152,63 @@ func (h *CalculatorHandler) Calculate(c *gin.Context) {
 	})
 }
 
+// CalculateTyped 处理类型化调用：不经通用 Invoke 字符串分发，而是通过
+// Gateway.Dial 拿到标准 gRPC 连接后，用按 calculator.proto 生成的客户端
+// 代码直接调用节点上的 Calculator 服务。错误保留 gRPC 状态语义。
+func (h *CalculatorHandler) CalculateTyped(c *gin.Context) {
+	var input CalculateRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	gateway := h.meshServer.ReverseGateway()
+	conn, err := gateway.Dial(ctx, registry.PeerID(h.nodeID))
+	if err != nil {
+		log.Printf("Failed to dial node %s: %v", h.nodeID, err)
+		c.JSON(http.StatusBadGateway, ErrorResponse{
+			Error: fmt.Sprintf("failed to dial node %s: %v", h.nodeID, err),
+		})
+		return
+	}
+	defer conn.Close()
+
+	client := pb.NewCalculatorClient(conn)
+	calcReq := &pb.CalcRequest{A: input.A, B: input.B}
+
+	log.Printf("Calling %s with a=%f, b=%f via typed gRPC stub on node %s", input.Operation, input.A, input.B, h.nodeID)
+
+	var resp *pb.CalcResponse
+	switch input.Operation {
+	case "add":
+		resp, err = client.Add(ctx, calcReq)
+	case "subtract":
+		resp, err = client.Subtract(ctx, calcReq)
+	case "multiply":
+		resp, err = client.Multiply(ctx, calcReq)
+	case "divide":
+		resp, err = client.Divide(ctx, calcReq)
+	default:
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error: fmt.Sprintf("unknown operation: %s", input.Operation),
+		})
+		return
+	}
+
+	if err != nil {
+		// 类型化路径保留 gRPC 状态错误，例如除零 → InvalidArgument "Division by zero"
+		log.Printf("Typed invoke failed: %v", err)
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	log.Printf("Result: %f", resp.Result)
+	c.JSON(http.StatusOK, CalculateResponse{Result: resp.Result})
+}
+
 // Health 健康检查
 func (h *CalculatorHandler) Health(c *gin.Context) {
 	// 检查节点是否在线
@@ -212,6 +271,7 @@ func (h *CalculatorHandler) ListNodes(c *gin.Context) {
 			"version":        sess.Handshake.Version,
 			"features":       sess.Handshake.Features,
 			"metadata":       sess.Handshake.Metadata,
+			"methods":        sess.Methods(),
 			"connected_at":   sess.ConnectedAt,
 			"last_heartbeat": sess.LastHeartbeat,
 		})
@@ -310,6 +370,9 @@ func main() {
 	// 计算接口
 	r.POST("/calculate", handler.Calculate)
 
+	// 类型化调用接口（Gateway.Dial + 生成的 CalculatorClient，不经通用 Invoke 分发）
+	r.POST("/calculate-typed", handler.CalculateTyped)
+
 	// 节点列表
 	r.GET("/nodes", handler.ListNodes)
 
@@ -320,7 +383,20 @@ func main() {
 			"version": "1.0.0",
 			"endpoints": gin.H{
 				"POST /calculate": gin.H{
-					"description": "Perform calculation",
+					"description": "Perform calculation (generic Invoke dispatch)",
+					"body": gin.H{
+						"operation": "add|subtract|multiply|divide",
+						"a":         "number",
+						"b":         "number",
+					},
+					"example": gin.H{
+						"operation": "add",
+						"a":         10,
+						"b":         5,
+					},
+				},
+				"POST /calculate-typed": gin.H{
+					"description": "Perform calculation via typed gRPC stub (no generic dispatch)",
 					"body": gin.H{
 						"operation": "add|subtract|multiply|divide",
 						"a":         "number",

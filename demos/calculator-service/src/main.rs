@@ -216,6 +216,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         connect_timeout: Duration::from_secs(10),
         max_backoff: Duration::from_secs(30),
         heartbeat_interval: Duration::from_secs(15),
+        // Verification is never weakened in the demo service.
+        insecure_skip_verify: false,
     };
 
     // 创建 shutdown 信号
@@ -225,6 +227,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut connector = TunnelConnector::new(connector_config, shutdown_rx)
         .map_err(|e| format!("Failed to create tunnel connector: {}", e))?;
 
+    // 先注册方法，再构建握手：方法清单随握手 metadata 上报给控制平面。
+    let registry = MethodRegistry::default();
+    register_calculator_methods(&registry);
+    info!("✅ Registered Calculator methods in MethodRegistry");
+
+    let mut method_list = registry.methods();
+    method_list.sort();
+    let reported_methods = method_list.join(",");
+
     // 构建握手信息
     let handshake = Handshake::builder(&config.node.id, env!("CARGO_PKG_VERSION"))
         .token(config.node.token)
@@ -232,6 +243,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_feature("calculator")
         .metadata_entry("service", "calculator")
         .metadata_entry("language", "rust")
+        // 控制平面通过这个键读取本节点的方法清单（见 registry.SessionState.Methods）
+        .metadata_entry("mesh.methods", reported_methods)
         .build()
         .map_err(|e| format!("Failed to build handshake: {}", e))?;
 
@@ -260,13 +273,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("🚀 Calculator Service is now listening through the reverse tunnel");
     info!("💡 Note: No local port is exposed - all traffic comes through the tunnel");
 
-    // 创建 MethodRegistry 并注册所有方法
-    let registry = MethodRegistry::default();
-    register_calculator_methods(&registry);
-    info!("✅ Registered Calculator methods in MethodRegistry");
-
-    // 创建 InvokeService（实现 InvokePlane gRPC 服务）
+    // 创建 InvokeService（实现 InvokePlane gRPC 服务，通用字符串分发兜底路径）
     let invoke_service = InvokeService::new(registry).into_server();
+
+    // 类型化路径：直接把 proto 定义的 Calculator 服务挂到同一个 tonic 服务器。
+    // 隧道适配层对服务类型不感知，server 侧可以用生成的客户端代码直接调用。
+    let calculator_service = calculator::calculator_server::CalculatorServer::new(CalculatorService);
 
     // 设置 shutdown 信号处理
     let shutdown_handle = shutdown_tx.clone();
@@ -282,6 +294,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("✨ Ready to handle requests");
 
     if let Err(e) = Server::builder()
+        .add_service(calculator_service)
         .add_service(invoke_service)
         .serve_with_incoming(incoming)
         .await

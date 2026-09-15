@@ -1,5 +1,7 @@
 # Calculator Client Configuration
-# This config embeds grpc-mesh-server settings plus application-specific settings
+# This config embeds grpc-mesh-server settings plus application-specific settings.
+# The server.* / listener.* / logging.* / auth.* keys below are the schema read
+# by pkg/config (github.com/grpc-mesh/grpc-mesh-server).
 
 # Application-specific settings
 app:
@@ -8,35 +10,23 @@ app:
   # Default target node ID for calculator service
   target_node_id: "calculator-service"
 
-# Embedded gRPC Mesh Server Configuration (mirrors grpc-mesh-server/config/config.yaml)
+# Embedded gRPC Mesh Server Configuration
 server:
   grpc_address: ":50051"
   metrics_address: ":9090"
-  heartbeat_interval: "15s"
-  invoke_timeout: "30s"
 
 listener:
   address: ":8443"
   cert_file: "../../grpc-mesh-server/config/tls/server-chain.crt"
   key_file: "../../grpc-mesh-server/config/tls/server.key"
-  ca_file: "" # Empty string disables mTLS (client cert verification)
-  prefer_server_cipher_suites: true
+  ca_file: "" # empty disables mTLS (client certificate verification)
 
-tunnel:
-  accept_backlog: 128
-  enable_keepalive: true
-  max_stream_window: 1048576
-  keepalive_interval: "30s"
-  keepalive_timeout: "90s"
+logging:
+  level: "info"
 
-security:
-  require_token: true
-  allowed_tokens:
-    # Example tokens; generate with: make token in grpc-mesh-server/
-    - "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"
-    - "waemu_TmpNextRotationToken"
-  node_whitelist: []
-  handshake_deadline: "5s"
-
-observability:
-  log_level: "info"
+auth:
+  enabled: true
+  # Per-node tokens: the demo calculator-service presents this token and is
+  # only accepted when it also claims node id "calculator-service".
+  node_tokens:
+    calculator-service: "waemu_7RCx4i4T6gU3O9Gqcx4-SvHMRN1V8dJ9"
