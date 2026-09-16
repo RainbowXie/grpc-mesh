@@ -43,3 +43,4 @@ bindings/python/build/
 bindings/python/*.egg-info/
 __pycache__/
 bindings/python/dist/
+demos/calculator-client/calculator-client
