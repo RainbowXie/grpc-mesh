@@ -4,23 +4,37 @@
 
 ## 安装
 
-当前以源码树方式使用；动态库在**运行时**定位，不随包分发（多平台
-wheel 与构建矩阵是后续变更，尚未实现）。
+Python 包是纯 Python；动态库在**运行时**定位，不随包分发。三种方式按省事程度排列（均已实测）：
+
+**方式一：直接从 GitHub 安装 + 下载预构建库（推荐，无需 Go 工具链）**
 
 ```bash
-# 1. 构建本机动态库（需要 Go ≥ 1.25、CGO 可用）
-cd ../../grpc-mesh-server
-make build-meshlib        # 产出 libmesh.so 与 libmesh.h
+# 1. 安装包（pip >= 21，monorepo 子目录；也可装 Release 里的 wheel）
+pip install "git+https://github.com/RainbowXie/grpc-mesh.git@python-v0.1.0a2#subdirectory=bindings/python"
 
-# 2. 二选一：放入包目录（按平台命名），或用环境变量指定
-cp libmesh.so ../bindings/python/grpc_mesh/_native/linux-x86_64/
-# 或：export GRPC_MESH_LIB=/path/to/libmesh.so
-
-# 3. 安装 Python 包（纯 Python；也可不装，直接 PYTHONPATH=. 使用）
-pip install .
+# 2. 下载预构建动态库（linux x86_64），运行时指向它
+curl -LO https://github.com/RainbowXie/grpc-mesh/releases/download/python-v0.1.0a2/libmesh-linux-x86_64.so
+export GRPC_MESH_LIB=$PWD/libmesh-linux-x86_64.so
 ```
 
-库缺失时导入/实例化会抛出 `MeshLibraryNotFound`，错误信息包含上述构建指引。
+**方式二：源码树使用（开发/贡献）**
+
+```bash
+git clone --recursive https://github.com/RainbowXie/grpc-mesh.git
+cd grpc-mesh/bindings/python
+PYTHONPATH=. python3 examples/calculator.py   # 不安装直接用
+```
+
+**方式三：自行构建动态库（其他平台，或不想用预构建产物）**
+
+```bash
+cd grpc-mesh-server
+make build-meshlib        # 产出 libmesh.so 与 libmesh.h；需要 Go ≥ 1.25、CGO
+export GRPC_MESH_LIB=/path/to/libmesh.so
+# 或放入包目录：grpc_mesh/_native/<platform>/libmesh.so
+```
+
+库缺失时实例化会抛出 `MeshLibraryNotFound`，错误信息包含构建指引。
 
 ## 快速开始
 
@@ -70,7 +84,7 @@ with MeshServer(config) as mesh:
 
 ## 平台支持
 
-`make build-meshlib` 构建当前平台（`.so` 放入 `_native/<sys.platform>-<machine>/`）。跨平台分发（linux x86_64/aarch64、macOS arm64/x86_64 的构建矩阵与带平台 tag 的 wheel）尚未实现——在非构建平台上使用需要在该平台自行构建或通过 `GRPC_MESH_LIB` 提供库。Windows 未支持。
+预构建 `.so` 目前只有 linux x86_64（见 [Release 资产](https://github.com/RainbowXie/grpc-mesh/releases/tag/python-v0.1.0a2)，内含版本与安装说明）。其他平台（linux aarch64、macOS arm64/x86_64）用 `make build-meshlib` 自行构建（`.so` 放入 `_native/<sys.platform>-<machine>/` 或经 `GRPC_MESH_LIB` 指定）；平台 tag 的 wheel 分发是后续变更。Windows 未支持。
 
 ## 故障排查
 

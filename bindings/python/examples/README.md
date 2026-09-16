@@ -17,9 +17,10 @@
 ## 前置条件
 
 ```bash
-# 1. 构建 c-shared 库并放入包内（一次性；或设 GRPC_MESH_LIB 指向现成 .so）
-cd grpc-mesh-server && make build-meshlib
-cp libmesh.so ../bindings/python/grpc_mesh/_native/linux-x86_64/   # 按平台
+# 1. 动态库：最省事是下载 Release 预构建产物（linux x86_64）并导出路径；
+#    其他平台则自行构建：
+export GRPC_MESH_LIB=/path/to/libmesh-linux-x86_64.so   # 从 Release 下载
+# 或：cd grpc-mesh-server && make build-meshlib && export GRPC_MESH_LIB=$PWD/libmesh.so
 
 # 2. 编译 Rust demo 节点（一次性）
 cd demos/calculator-service && cargo build
