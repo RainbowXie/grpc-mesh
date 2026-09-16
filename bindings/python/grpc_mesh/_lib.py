@@ -4,8 +4,9 @@ The library is produced by `make build-meshlib` in grpc-mesh-server
 (CGO_ENABLED=1 go build -buildmode=c-shared). Loading order:
 
 1. the ``GRPC_MESH_LIB`` environment variable (absolute path to libmesh.so)
-2. ``grpc_mesh/_native/<platform>/libmesh.so`` shipped inside a platform
-   wheel, where ``<platform>`` is e.g. ``linux-aarch64`` or ``darwin-arm64``
+2. ``grpc_mesh/_native/<platform>/libmesh.so`` placed there by the user
+   (built via ``make build-meshlib`` or downloaded from a GitHub release),
+   where ``<platform>`` is e.g. ``linux-x86_64`` or ``darwin-arm64``
 3. ``grpc_mesh/_native/libmesh.so`` (flat copy)
 
 ctypes.CDLL releases the GIL while a foreign call runs, so blocking calls

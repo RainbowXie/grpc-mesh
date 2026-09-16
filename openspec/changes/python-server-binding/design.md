@@ -16,7 +16,7 @@ Go server 已是可内嵌的库（calculator-client 以 `server.New(cfg)` + `Rev
 
 - 事件订阅回调（节点上下线）；`list_nodes()` 轮询先行，回调 API 后续立项。
 - asyncio 接口；类型化 `Dial` 直调（Python 侧生成 stub 无处安放，后续与 reflection 一并评估）。
-- Windows 支持（构建矩阵先 linux + macOS）。
+- Windows 支持；多平台构建矩阵（linux aarch64、macOS 等）——均为后续 change，本 change 只构建当前平台。
 - 修改任何 `pkg/` 现有行为。
 
 ## Decisions
@@ -39,11 +39,7 @@ mesh_str_release(str_handle)               // 单调 id 一次性释放，重复
 mesh_last_error() -> cstr                  // 便捷取最近错误
 ```
 
-字符串以单调递增 id 的不透明句柄标识（复审 round 1 修正）：直接以
-`char*` 指针为分配身份无法区分地址复用后的新旧分配，释放 A、分配 B
-复用同地址、再释放 A 会误杀 B。句柄式让"重复释放 no-op"成为可靠契
-约。事件回调本期不做：Python↔Go 回调需要 GIL 状态管理，复杂度不成
-比例；轮询 `list_nodes` 覆盖当前场景。
+字符串以单调递增 id 的不透明句柄标识（复审 round 1 修正）：直接以 `char*` 指针为分配身份无法区分地址复用后的新旧分配，释放 A、分配 B 复用同地址、再释放 A 会误杀 B；句柄式让"重复释放 no-op"成为可靠契约。事件回调本期不做：Python↔Go 回调需要 GIL 状态管理，复杂度不成比例；轮询 `list_nodes` 覆盖当前场景。
 
 ### D3：配置与结果都走 JSON 字符串
 
@@ -70,7 +66,7 @@ wheel 仅含纯 Python 代码，不捆绑 `.so`（避免 py3-none-any 声明与�
 - [无多平台分发（库需在目标平台自行构建或经 GRPC_MESH_LIB 提供）] → 本 change 明确不做分发矩阵；多平台构建与平台 wheel 为后续变更。
 - [双运行时调试困难（Go 崩溃带走 Python 进程）] → 所有导出函数 recover 兜底；ABI 测试覆盖错误路径。
 - [无事件回调，节点状态靠轮询] → 本期接受；回调作为后续独立 change。
-- [cgo 构建（需要 CGO_ENABLED=1 + 平台交叉工具链）] → macOS 交叉编译受限于 cgo 工具链，矩阵中 macOS x86_64 可能需 CI runner；先保证本机平台，其余按矩阵补齐。
+- [cgo 构建（需要 CGO_ENABLED=1 + 平台交叉工具链）] → 本 change 仅保证本机平台构建；交叉编译与 CI runner 属于后续的多平台矩阵变更。
 - [GIL 释放依赖 ctypes 默认行为] → Python 侧测试显式验证并发场景（spec 场景即测试用例）。
 
 ## Migration Plan
