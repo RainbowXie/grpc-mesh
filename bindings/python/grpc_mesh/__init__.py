@@ -8,6 +8,7 @@ c-shared library. See bindings/python/README.md for installation and usage.
 from __future__ import annotations
 
 import base64
+import binascii
 import ctypes
 import json
 from dataclasses import dataclass, field
@@ -55,15 +56,19 @@ class _NodeInfo:
 
 
 def _decode_error(raw: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Decode the base64 ``details`` field; malformed data is a hard error,
+    not silently passed through as a string."""
     if not raw:
         return None
     err = dict(raw)
     details = err.get("details", "")
-    if isinstance(details, str) and details:
+    if isinstance(details, str):
         try:
-            err["details"] = base64.b64decode(details)
-        except Exception:
-            pass
+            err["details"] = base64.b64decode(details, validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise MeshError(
+                f"malformed base64 in invoke error.details: {exc}"
+            ) from exc
     return err
 
 
@@ -140,7 +145,7 @@ class MeshServer:
         are reported on the returned InvokeResult (``success=False`` and the
         ``error`` dict, e.g. ``{"code": "DIAL_FAILED", ...}``).
         """
-        ptr = self._lib.mesh_invoke(
+        str_handle = self._lib.mesh_invoke(
             self._handle,
             peer_id.encode("utf-8"),
             method.encode("utf-8"),
@@ -148,13 +153,10 @@ class MeshServer:
             len(payload),
             int(timeout_ms),
         )
-        if not ptr:
+        if not str_handle:
             raise MeshError(self._last_error())
 
-        raw = ctypes.string_at(ptr).decode("utf-8")
-        self._lib.mesh_free_string(ctypes.cast(ptr, ctypes.c_void_p))
-
-        obj = json.loads(raw)
+        obj = json.loads(self._read_string_handle(str_handle))
         result_b64 = obj.get("result") or ""
         result = base64.b64decode(result_b64) if result_b64 else b""
         return InvokeResult(
@@ -169,15 +171,23 @@ class MeshServer:
 
     def list_nodes(self) -> list[dict[str, Any]]:
         """Return connected nodes with their reported method lists."""
-        ptr = self._lib.mesh_list_nodes(self._handle)
-        if not ptr:
+        str_handle = self._lib.mesh_list_nodes(self._handle)
+        if not str_handle:
             raise MeshError(self._last_error())
 
-        raw = ctypes.string_at(ptr).decode("utf-8")
-        self._lib.mesh_free_string(ctypes.cast(ptr, ctypes.c_void_p))
-        return json.loads(raw)
+        return json.loads(self._read_string_handle(str_handle))
 
     # -- internals ------------------------------------------------------
+
+    def _read_string_handle(self, str_handle: int) -> str:
+        """Read a library string handle and release it exactly once."""
+        cs = self._lib.mesh_str_data(str_handle)
+        if not cs:
+            raise MeshError("string handle vanished before it could be read")
+        try:
+            return cs.decode("utf-8")
+        finally:
+            self._lib.mesh_str_release(str_handle)
 
     def _last_error(self) -> str:
         cs = self._lib.mesh_last_error()

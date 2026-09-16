@@ -4,26 +4,20 @@
 
 ## 安装
 
-**方式一：预编译库 + 纯 Python 包**
+当前以源码树方式使用；动态库在**运行时**定位，不随包分发（多平台
+wheel 与构建矩阵是后续变更，尚未实现）。
 
 ```bash
-pip install .            # 安装 grpc_mesh 包
-# 将 libmesh.so 放到 grpc_mesh/_native/<platform>/ 下，
-# 例如 linux-x86_64、linux-aarch64、darwin-arm64、darwin-x86_64
-```
-
-**方式二：源码构建库**（需要 Go ≥ 1.25，CGO 可用）
-
-```bash
+# 1. 构建本机动态库（需要 Go ≥ 1.25、CGO 可用）
 cd ../../grpc-mesh-server
 make build-meshlib        # 产出 libmesh.so 与 libmesh.h
+
+# 2. 二选一：放入包目录（按平台命名），或用环境变量指定
 cp libmesh.so ../bindings/python/grpc_mesh/_native/linux-x86_64/
-```
+# 或：export GRPC_MESH_LIB=/path/to/libmesh.so
 
-**方式三：环境变量指定库路径**
-
-```bash
-export GRPC_MESH_LIB=/path/to/libmesh.so
+# 3. 安装 Python 包（纯 Python；也可不装，直接 PYTHONPATH=. 使用）
+pip install .
 ```
 
 库缺失时导入/实例化会抛出 `MeshLibraryNotFound`，错误信息包含上述构建指引。
@@ -74,9 +68,9 @@ with MeshServer(config) as mesh:
 
 阻塞调用（`invoke`）在等待期间释放 GIL（ctypes `CDLL` 行为），其他 Python 线程可正常执行。验收场景：节点被 `SIGSTOP` 后 2.5s 超时的 `invoke` 期间，计数线程执行了千万级循环（见 `openspec/changes/python-server-binding`）。
 
-## 平台矩阵
+## 平台支持
 
-`.so` 与平台绑定（`_native/<sys.platform>-<machine>/libmesh.so`）：linux x86_64/aarch64、macOS arm64/x86_64（macOS 交叉编译需要对应 cgo 工具链，必要时在目标平台 CI 上构建）。Windows 未支持。
+`make build-meshlib` 构建当前平台（`.so` 放入 `_native/<sys.platform>-<machine>/`）。跨平台分发（linux x86_64/aarch64、macOS arm64/x86_64 的构建矩阵与带平台 tag 的 wheel）尚未实现——在非构建平台上使用需要在该平台自行构建或通过 `GRPC_MESH_LIB` 提供库。Windows 未支持。
 
 ## 故障排查
 

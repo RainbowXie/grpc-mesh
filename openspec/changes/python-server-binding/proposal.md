@@ -6,7 +6,7 @@ Python 应用目前无法以进程内方式承载 gRPC-Mesh 控制平面——Go
 
 - grpc-mesh-server 新增 c-shared 构建目标：一个最小 C ABI（`mesh_*` 系列函数），覆盖生命周期（创建/启动/停止）、通用调用（invoke）、节点查询（list_nodes）。
 - 新增 Python 包 `grpc-mesh`（父仓库 `bindings/python/`）：ctypes 加载平台 `.so`，提供 `MeshServer` 上下文管理器、`invoke(peer_id, method, payload)`、`list_nodes()`，错误以 Python 异常暴露。
-- 跨平台产物：linux（amd64/arm64）与 macOS（arm64/x86_64）的 `.so` 构建；Windows 支持后续评估。
+- 构建产物：`make build-meshlib` 本机单平台 `.so`；运行时经 `GRPC_MESH_LIB` 或 `_native/<platform>/` 定位，不随 Python 包分发（多平台构建矩阵与平台 wheel 为后续变更）。Windows 未支持。
 - 新增 Python 最小示例（对应 calculator-client 的内嵌用法）与文档。
 - 不改变任何现有 Go 包的行为；C ABI 以独立构建目标导出，纯 Go 使用者不受影响。
 - 非 goal：不做事件订阅回调（节点上下线以 `list_nodes()` 轮询，回调 API 后续另行立项）；不做 asyncio 接口（同步 API 先行）；不做 server 公网 gRPC 面的新增 RPC。
@@ -27,4 +27,4 @@ Python 应用目前无法以进程内方式承载 gRPC-Mesh 控制平面——Go
 - `grpc-mesh-server`（子模块）：新增 C ABI 导出层（独立目录 + 构建脚本），不触碰 `pkg/` 现有行为；新增 Go 侧 ABI 单元测试。
 - 父仓库：新增 `bindings/python/`（包源码、打包配置、示例、测试）；构建脚本与文档。
 - 依赖：Python 包仅依赖标准库 ctypes（调用侧零第三方依赖）；构建 `.so` 需 Go 工具链。
-- 分发：预构建 `.so` 随平台 wheel 分发或作为 release 附件；源码构建回退需要 Go ≥ 1.25。
+- 分发：源码树 + `make build-meshlib`（Go ≥ 1.25）；wheel 仅含纯 Python 包，不捆绑动态库。

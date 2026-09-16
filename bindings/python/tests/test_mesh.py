@@ -26,6 +26,28 @@ def library_available() -> bool:
         return False
 
 
+class TestDecodeError(unittest.TestCase):
+    """ISSUE-003: malformed base64 in error.details must fail loudly."""
+
+    def test_malformed_details_raises(self):
+        from grpc_mesh import MeshError, _decode_error
+
+        with self.assertRaises(MeshError):
+            _decode_error({"code": "X", "details": "!!!not-base64!!!"})
+
+    def test_valid_details_decodes_to_bytes(self):
+        from grpc_mesh import _decode_error
+
+        err = _decode_error({"code": "X", "details": "aGk="})
+        self.assertEqual(err["details"], b"hi")
+
+    def test_empty_details_decodes_to_empty_bytes(self):
+        from grpc_mesh import _decode_error
+
+        err = _decode_error({"code": "X", "details": ""})
+        self.assertEqual(err["details"], b"")
+
+
 class TestLibraryLoading(unittest.TestCase):
     def test_missing_library_raises_actionable_error(self):
         with self.assertRaises(MeshLibraryNotFound) as ctx:

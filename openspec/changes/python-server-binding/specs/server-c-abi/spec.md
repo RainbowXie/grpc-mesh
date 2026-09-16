@@ -38,14 +38,19 @@ C ABI SHALL 提供 `mesh_invoke`（按 peer_id + 方法名 + payload 字节发�
 - **WHEN** 一个已上报方法清单的节点在线，调用 `mesh_list_nodes`
 - **THEN** 返回的 JSON 数组含该节点的 `methods` 列表
 
-### Requirement: C ABI 的内存与线程规则
+### Requirement: C ABI 的字符串句柄与线程规则
 
-字符串与缓冲区跨边界的所有权 SHALL 归调用方：ABI 提供释放函数（如 `mesh_free_string`/`mesh_free_buffer`），调用方用其释放 ABI 返回的堆内存。`mesh_invoke` 与 `mesh_list_nodes` SHALL 可被多线程并发调用。
+`mesh_invoke` 与 `mesh_list_nodes` SHALL 返回字符串句柄（0 表示失败）；内容经 `mesh_str_data` 以借用指针读出（调用方不得 free，句柄释放前有效），经 `mesh_str_release` 释放。句柄身份 SHALL 为单调 id 而非内存地址：同一句柄重复释放 SHALL 为 no-op，且**地址复用下的陈旧释放不得影响后续分配**。`mesh_invoke` 与 `mesh_list_nodes` SHALL 可被多线程并发调用。
 
-#### Scenario: 释放返回的字符串
+#### Scenario: 释放与重复释放
 
-- **WHEN** 调用方对 `mesh_list_nodes` 返回的字符串句柄调用 ABI 提供的释放函数
-- **THEN** 内存被释放且进程无泄漏崩溃；重复释放为 no-op 或可检测错误，不导致崩溃
+- **WHEN** 调用方读取 `mesh_list_nodes` 返回句柄的内容后调用 `mesh_str_release`，随后再次对同一句柄调用 `mesh_str_release`
+- **THEN** 第二次释放为 no-op；该句柄再经 `mesh_str_data` 读取得到 NULL，进程不崩溃
+
+#### Scenario: 地址复用下的陈旧释放
+
+- **WHEN** 句柄 A 已释放，新的分配 B 复用了 A 的底层内存地址，调用方此时再次释放 A
+- **THEN** B 的内容不受影响且仍可正常读取（释放按 id 生效，与地址无关）
 
 #### Scenario: 并发调用
 

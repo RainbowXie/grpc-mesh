@@ -1,6 +1,6 @@
 ## 1. Go 侧 C ABI（grpc-mesh-server 子模块）
 
-- [x] 1.1 新增 `cmd/meshlib/`（main 包）：`mesh_server_new/start/stop/free`、`mesh_invoke`、`mesh_list_nodes`、`mesh_free_string`、`mesh_last_error`，全部 `//export` + recover 兜底；配置经 `pkg/config` schema 的 JSON 解析，句柄内部持有 `*server.Server`
+- [x] 1.1 新增 `cmd/meshlib/`（main 包）：`mesh_server_new/start/stop/free`、`mesh_invoke`、``mesh_list_nodes`、`mesh_str_data`/`mesh_str_release`（字符串句柄）、`mesh_last_error`，全部 `//export` + recover 兜底；配置经 `pkg/config` schema 的 JSON 解析，句柄内部持有 `*server.Server`
 - [x] 1.2 `InvokeResponse`/节点列表的 JSON 序列化（字节字段 base64），错误写入线程局部 slot 供 `mesh_last_error` 读取
 - [x] 1.3 Go 单测：以 C 调用等价方式覆盖 spec 场景（非法配置、启动端口冲突、stop 幂等、未注册节点 DIAL_FAILED、重复释放 no-op、并发 invoke）
 - [x] 1.4 `make build-meshlib`：`CGO_ENABLED=1 go build -buildmode=c-shared`，产出 `.so`/`.h`；`go build ./... && go vet ./... && go test ./...` 全绿
@@ -15,7 +15,7 @@
 ## 3. 端到端验收
 
 - [x] 3.1 环境搭建：`make build-meshlib` 产 `.so` → Python `MeshServer` 启动（测试 CA 证书 + `auth.node_tokens`）+ Rust calculator-service 节点接入
-- [x] 3.2 `list_nodes()` 显示节点与方法清单；`invoke("calculator-service", "calculator.v1.Calculator/Add", proto字节)` 得到正确结果（10+5=15，与 Go 路径一致）
+- [x] 3.2 `list_nodes()` 显示节点与方法清单；`invoke("calculator-service", "calculator.v1.Calculator/Add", proto 字节)` 得到正确结果（10+5=15，与 Go 路径一致）
 - [x] 3.3 `with` 退出后进程干净结束（无残留 goroutine/监听端口）；重复 `stop()` 无异常
 - [x] 3.4 Python 侧示例脚本留档（`bindings/python/examples/calculator.py`）
 
@@ -24,3 +24,11 @@
 - [x] 4.1 `bindings/python/README.md`：安装（wheel/源码）、快速开始、配置 schema 说明、平台矩阵、故障排查（库缺失/构建要求 Go ≥ 1.25）
 - [x] 4.2 主 README 链接 Python binding 入口；openspec validate 通过
 - [x] 4.3 分仓提交推送（server 子模块 + 父仓 + 指针）
+
+## 5. 复审修复（round 1）
+
+- [x] 5.1 CRITICAL：字符串 ABI 由指针释放改为单调 id 句柄（`mesh_str_data`/`mesh_str_release`），消除地址复用下陈旧释放误杀活字符串的缺陷；新增"释放 A、分配 B 复用地址、再释放 A、B 仍有效"回归测试（cmd/meshlib）
+- [x] 5.2 MAJOR：收缩分发承诺——pyproject 不再随 wheel 捆绑 `.so`（消除 py3-none-any 含 ELF 的矛盾），README/proposal/design 的多平台矩阵与 wheel 表述改为"后续变更"；当前为源码树 + 运行时定位（GRPC_MESH_LIB / _native/<platform>）
+- [x] 5.3 MINOR：`_decode_error` 窄化异常捕获（ValueError/binascii.Error）并将畸形 base64 转为 MeshError；新增畸形/合法/空 details 三例单测
+- [x] 5.4 MINOR：两个 change 文档的中英文间距清扫（proto 与汉字间补空格等）
+- [x] 5.5 回归：Go 测试（-race）、Python 单测 9/9、全量 e2e 25 项重跑通过

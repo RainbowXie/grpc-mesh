@@ -16,5 +16,10 @@ Homepage = "https://github.com/RainbowXie/grpc-mesh"
 [tool.setuptools.packages.find]
 include = ["grpc_mesh*"]
 
+# NOTE: the c-shared libmesh.so is deliberately NOT bundled. Wheels built
+# from this packaging are pure Python and platform-independent; the native
+# library is located at runtime via GRPC_MESH_LIB or _native/<platform>/
+# (see README). Bundling per-platform libraries requires platform-tagged
+# wheels, which are a follow-up change.
 [tool.setuptools.package-data]
-grpc_mesh = ["_native/*/libmesh.so", "_native/README.md"]
+grpc_mesh = ["_native/README.md"]

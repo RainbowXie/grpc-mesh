@@ -25,20 +25,25 @@ Go server 已是可内嵌的库（calculator-client 以 `server.New(cfg)` + `Rev
 
 协议只需一份实现：控制面（TLS+yamux+长度前缀 JSON 控制帧+心跳+`auth.node_tokens` 身份绑定+staleness 清理）刚完成修复并有测试锁定，c-shared 直接继承。重实现的两个硬块（h2 手写 gRPC 客户端成帧、yamux 纯 Python 实现）均无成熟库路径，且多实现漂移在本项目有两次实锤先例。
 
-### D2：ABI 面收敛到 8 个函数 + 2 个释放函数
+### D2：ABI 面收敛到 6 个函数 + 3 个字符串句柄函数
 
 ```
 mesh_server_new(json_config) -> handle | 0
 mesh_server_start(handle) -> err
 mesh_server_stop(handle) -> err            // 幂等
 mesh_server_free(handle)                   // 释放句柄（内部先 stop）
-mesh_invoke(handle, peer_id, method, payload, payload_len, timeout_ms, out_json) -> err
-mesh_list_nodes(handle, out_json) -> err
-mesh_free_string(cstr)
+mesh_invoke(handle, peer_id, method, payload, payload_len, timeout_ms) -> str_handle | 0
+mesh_list_nodes(handle) -> str_handle | 0
+mesh_str_data(str_handle) -> const char*   // 借用指针，释放前有效，勿 free
+mesh_str_release(str_handle)               // 单调 id 一次性释放，重复释放 no-op
 mesh_last_error() -> cstr                  // 便捷取最近错误
 ```
 
-事件回调本期不做：Python↔Go 回调需要 GIL 状态管理，复杂度不成比例；轮询 `list_nodes` 覆盖当前场景。
+字符串以单调递增 id 的不透明句柄标识（复审 round 1 修正）：直接以
+`char*` 指针为分配身份无法区分地址复用后的新旧分配，释放 A、分配 B
+复用同地址、再释放 A 会误杀 B。句柄式让"重复释放 no-op"成为可靠契
+约。事件回调本期不做：Python↔Go 回调需要 GIL 状态管理，复杂度不成
+比例；轮询 `list_nodes` 覆盖当前场景。
 
 ### D3：配置与结果都走 JSON 字符串
 
@@ -48,21 +53,21 @@ mesh_last_error() -> cstr                  // 便捷取最近错误
 
 `buildmode=c-shared` 需要 main 包：新增 `cmd/meshlib/`（空 `main()` + `//export` 函数 + recover 兜底），组装逻辑复用 `pkg/server`。纯 Go 使用者与现有构建不受影响；单测以普通 Go 测试直接调用导出函数（等价于 C 调用路径）。
 
-### D5：内存所有权归调用方，释放函数集中提供
+### D5：字符串经 id 句柄管理，身份与内存地址解耦
 
-ABI 返回的堆字符串/缓冲由 `mesh_free_string` 释放（内部记录分配来源，重复释放 no-op）。句柄内部持有 `*server.Server` 与错误 slot；`mesh_last_error` 返回线程局部的最近错误字符串。
+`mesh_invoke`/`mesh_list_nodes` 返回字符串句柄；`mesh_str_data` 给出借用指针（调用方勿 free），`mesh_str_release` 按句柄一次性释放、重复释放为可靠 no-op（id 查表，不受分配器地址复用影响）。服务器句柄内部持有 `*server.Server` 与错误 slot；`mesh_last_error` 返回线程局部的最近错误字符串。
 
 ### D6：Python 层同步 API + ctypes，零第三方运行时依赖
 
 ctypes 在外部调用期间默认释放 GIL（满足"阻塞不独占解释器"）。`MeshServer` 持句柄，`invoke` 返回 dataclass（`success/result/error`），`DIAL_FAILED` 等按返回对象字段暴露而非异常（与 Go 侧 `Invoke` 的语义一致）；仅句柄/加载/配置错误抛 Python 异常。动态库解析顺序：环境变量 `GRPC_MESH_LIB` → 包内平台目录 → 明确报错（附构建说明）。
 
-### D7：分发为"包 + 平台 .so"
+### D7：分发为"纯 Python 包 + 运行时定位动态库"
 
-wheel 打包当前平台的 `.so`（`bindings/python/grpc_mesh/_native/<plat>/`）；`make build-python-lib` 产出 linux amd64/arm64、macOS arm64/x86_64 四个 `.so`。源码安装回退需 Go 工具链并现场构建。Go runtime 信号问题以显式初始化规避：`mesh_server_new` 内配置 Go 不抢占 SIGINT/SIGTERM（信号归宿主），Go 文档化的 `os/signal` 约束在 c-shared 下默认即不安装处理器，验证项列入测试。
+wheel 仅含纯 Python 代码，不捆绑 `.so`（避免 py3-none-any 声明与内含 ELF 的矛盾——复审 round 1 修正）。库经 `GRPC_MESH_LIB` 或 `_native/<platform>/` 在运行时定位；`make build-meshlib` 构建当前平台。多平台构建矩阵与平台 tag wheel 为后续变更，不在本 change 范围。Go runtime 信号问题以显式初始化规避：`mesh_server_new` 内配置 Go 不抢占 SIGINT/SIGTERM（信号归宿主），Go 文档化的 `os/signal` 约束在 c-shared 下默认即不安装处理器，验证项列入测试。
 
 ## Risks / Trade-offs
 
-- [分发矩阵与体积（每平台一个约 10-20MB 的 .so）] → wheel 按平台拆分，源码构建回退；release 附独立 .so。
+- [无多平台分发（库需在目标平台自行构建或经 GRPC_MESH_LIB 提供）] → 本 change 明确不做分发矩阵；多平台构建与平台 wheel 为后续变更。
 - [双运行时调试困难（Go 崩溃带走 Python 进程）] → 所有导出函数 recover 兜底；ABI 测试覆盖错误路径。
 - [无事件回调，节点状态靠轮询] → 本期接受；回调作为后续独立 change。
 - [cgo 构建（需要 CGO_ENABLED=1 + 平台交叉工具链）] → macOS 交叉编译受限于 cgo 工具链，矩阵中 macOS x86_64 可能需 CI runner；先保证本机平台，其余按矩阵补齐。

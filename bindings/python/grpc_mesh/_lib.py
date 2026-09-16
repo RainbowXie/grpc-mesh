@@ -51,7 +51,6 @@ def _candidate_paths() -> list[str]:
 
 def _bind(lib: ctypes.CDLL) -> None:
     c_str = ctypes.c_char_p
-    out_str = ctypes.POINTER(ctypes.c_char)
 
     lib.mesh_server_new.argtypes = [c_str]
     lib.mesh_server_new.restype = ctypes.c_uint64
@@ -73,13 +72,20 @@ def _bind(lib: ctypes.CDLL) -> None:
         ctypes.c_int,     # payload length
         ctypes.c_uint32,  # timeout_ms
     ]
-    lib.mesh_invoke.restype = out_str
+    # mesh_invoke / mesh_list_nodes return a string handle (0 = failure);
+    # content comes from mesh_str_data (borrowed) and the handle is
+    # released with mesh_str_release. Handle identity is a monotonic id,
+    # so a stale double release is a safe no-op.
+    lib.mesh_invoke.restype = ctypes.c_uint64
 
     lib.mesh_list_nodes.argtypes = [ctypes.c_uint64]
-    lib.mesh_list_nodes.restype = out_str
+    lib.mesh_list_nodes.restype = ctypes.c_uint64
 
-    lib.mesh_free_string.argtypes = [ctypes.c_void_p]
-    lib.mesh_free_string.restype = None
+    lib.mesh_str_data.argtypes = [ctypes.c_uint64]
+    lib.mesh_str_data.restype = c_str  # borrowed; do not free; NULL if released
+
+    lib.mesh_str_release.argtypes = [ctypes.c_uint64]
+    lib.mesh_str_release.restype = None
 
     lib.mesh_last_error.argtypes = []
     lib.mesh_last_error.restype = c_str
