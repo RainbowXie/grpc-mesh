@@ -42,3 +42,4 @@ bindings/python/grpc_mesh/_native/**/libmesh.so
 bindings/python/build/
 bindings/python/*.egg-info/
 __pycache__/
+bindings/python/dist/
