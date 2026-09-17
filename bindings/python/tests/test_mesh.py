@@ -26,6 +26,44 @@ def library_available() -> bool:
         return False
 
 
+class TestAbiSignatureBinding(unittest.TestCase):
+    """ISSUE round-3: assert the ctypes signatures bound for all nine
+    exported ABI functions, without needing the real library."""
+
+    def test_all_nine_signatures(self):
+        import ctypes
+        from types import SimpleNamespace
+
+        fake = SimpleNamespace()
+        for name in (
+            "mesh_server_new", "mesh_server_start", "mesh_server_stop",
+            "mesh_server_free", "mesh_invoke", "mesh_list_nodes",
+            "mesh_str_data", "mesh_str_release", "mesh_last_error",
+        ):
+            setattr(fake, name, ctypes.CFUNCTYPE(None)())  # placeholder instance
+
+        _lib._bind(fake)
+
+        expect = {
+            "mesh_server_new": ([ctypes.c_char_p], ctypes.c_uint64),
+            "mesh_server_start": ([ctypes.c_uint64], ctypes.c_int),
+            "mesh_server_stop": ([ctypes.c_uint64], ctypes.c_int),
+            "mesh_server_free": ([ctypes.c_uint64], None),
+            "mesh_invoke": ([
+                ctypes.c_uint64, ctypes.c_char_p, ctypes.c_char_p,
+                ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32,
+            ], ctypes.c_uint64),
+            "mesh_list_nodes": ([ctypes.c_uint64], ctypes.c_uint64),
+            "mesh_str_data": ([ctypes.c_uint64], ctypes.c_char_p),
+            "mesh_str_release": ([ctypes.c_uint64], None),
+            "mesh_last_error": ([], ctypes.c_char_p),
+        }
+        for name, (args, res) in expect.items():
+            fn = getattr(fake, name)
+            self.assertEqual(list(fn.argtypes), args, name)
+            self.assertIs(fn.restype, res, name)
+
+
 class TestDecodeError(unittest.TestCase):
     """ISSUE-003: malformed base64 in error.details must fail loudly."""
 
@@ -90,6 +128,17 @@ class TestMeshServerLifecycle(unittest.TestCase):
         # cert without key violates the pairing rule
         with self.assertRaises(MeshError):
             MeshServer({"listener": {"cert_file": "/nonexistent.crt"}})
+
+    def test_closed_server_rejects_use(self):
+        mesh = MeshServer(dict(self.FREE_PORTS_CFG))
+        mesh.close()
+        with self.assertRaises(MeshError):
+            mesh.list_nodes()
+        with self.assertRaises(MeshError):
+            mesh.invoke("x", "y", b"")
+        with self.assertRaises(MeshError):
+            mesh.start()
+        mesh.close()  # second close stays a no-op
 
     def test_invoke_unknown_peer_reports_dial_failed(self):
         with MeshServer(dict(self.FREE_PORTS_CFG)) as mesh:

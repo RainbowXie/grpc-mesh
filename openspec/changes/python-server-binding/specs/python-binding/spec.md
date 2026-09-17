@@ -2,7 +2,7 @@
 
 ### Requirement: Python 包可加载动态库并管理服务器生命周期
 
-Python 包 `grpc-mesh` SHALL 在导入时按当前平台加载对应的 c-shared 动态库（wheel 内置或环境变量指定的路径）。`MeshServer(config: dict)` SHALL 接受与 `pkg/config` schema 一致的配置字典（序列化为 JSON 后传入 C ABI），支持作为上下文管理器使用（进入时启动、退出时停止）。
+Python 包 `grpc-mesh` SHALL 在创建 `MeshServer` 实例时按当前平台加载对应的 c-shared 动态库（环境变量 `GRPC_MESH_LIB` 或包内 `_native/<platform>/` 用户放置的库；导入模块本身不触发加载）。`MeshServer(config: dict)` SHALL 接受与 `pkg/config` schema 一致的配置字典（序列化为 JSON 后传入 C ABI），支持作为上下文管理器使用（进入时启动、退出时停止）。
 
 #### Scenario: 上下文管理器启动与停止
 

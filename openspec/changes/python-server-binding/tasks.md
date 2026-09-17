@@ -10,7 +10,7 @@
 - [x] 2.1 ctypes 加载层：`GRPC_MESH_LIB` 环境变量 → 包内 `_native/<plat>/` → 报错信息附构建说明；函数签名绑定
 - [x] 2.2 `MeshServer`：dict 配置序列化、上下文管理器（`__enter__` start / `__exit__` stop）、句柄与异常（`MeshError`、`MeshLibraryNotFound`）
 - [x] 2.3 `invoke(peer_id, method, payload, timeout_ms)` 返回 dataclass（success/result/error），`list_nodes()` 返回含 `methods` 的字典列表；base64 解码
-- [x] 2.4 单测：无库报错路径 + mock 库签名；阻塞调用释放 GIL 的双线程测试（spec 场景）
+- [x] 2.4 单测：无库报错路径 + mock 库 ABI 签名断言（9 个导出函数的 argtypes/restype，R3 补齐）；GIL 并发语义由端到端验收承担（e2e 的 SIGSTOP 慢调用场景，见 R3 校准说明）
 
 ## 3. 端到端验收
 
@@ -40,3 +40,14 @@
 - [x] 6.3 MINOR：_lib.py 模块文档改为"用户自行放置或从源码/Release 提供"；design.md 残留的矩阵措辞（Non-Goals 与 cgo 风险两处）统一为"当前平台本机构建，多平台矩阵属后续 change"。
 - [x] 6.4 MINOR：tasks.md 双反引号修正；design.md 手动换行段落恢复单行；对全部相关 Markdown 执行连续中文短行检测，0 候选。
 - [x] 6.5 回归：干净世界安装态集成通过后，重跑全量 e2e 与 Go/Python 测试，openspec validate 通过。
+
+## 7. 归档前验证（round 3）
+
+- [x] 7.1 CRITICAL：并行会话的未提交修改（calculator-service 空 registry + 硬编码方法清单、node ca.crt 替换、node-ffi-java-binding 草稿）以 stash 隔离（父仓与 node 子仓各自 stash@{0}，可恢复），父仓与两个子仓回到干净提交世界
+- [x] 7.2 CRITICAL：补 mock ABI 签名断言单测（9 个导出函数 argtypes/restype，无需真库）；task 2.4 措辞校准为"GIL 并发语义由端到端验收承担"
+- [x] 7.3 WARNING：spec 加载时机修正为"创建 MeshServer 时加载"（导入不触发）
+- [x] 7.4 WARNING：Release 标记 prerelease；新增 SHA256SUMS 资产；README 与 Release notes 增加下载完整性校验步骤
+- [x] 7.5 WARNING：干净树重建 GitNexus 索引并对 MeshServer/mesh_invoke 补 impact 收据（见 R3 说明）
+- [x] 7.6 SUGGESTION：MeshServer.close() 清零句柄，关闭后 start/stop/invoke/list_nodes 抛 MeshError；含单测
+- [x] 7.7 SUGGESTION：发布门禁固化为 e2e/release_gate.sh（git archive 干净树构建、清单纯净/purelib/源码一致断言、9 符号断言、全新 venv 安装态集成）
+- [x] 7.8 终验：干净世界全量 e2e 25/25 + 发布 .so 独立下载校验安装态测试 + openspec validate

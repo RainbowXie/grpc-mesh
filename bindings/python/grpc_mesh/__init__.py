@@ -101,20 +101,30 @@ class MeshServer:
 
     # -- lifecycle ------------------------------------------------------
 
+    def _ensure_open(self) -> None:
+        if not self._handle:
+            raise MeshError("MeshServer is closed (handle already released)")
+
     def start(self) -> None:
+        self._ensure_open()
         rc = self._lib.mesh_server_start(self._handle)
         if rc != 0:
             raise MeshError(self._last_error())
         self._started = True
 
     def stop(self) -> None:
+        self._ensure_open()
         rc = self._lib.mesh_server_stop(self._handle)
         if rc != 0:
             raise MeshError(self._last_error())
         self._started = False
 
     def close(self) -> None:
-        self._lib.mesh_server_free(self._handle)
+        """Release the native handle. Swap-and-zero so later calls fail with
+        a clear MeshError instead of operating on a stale handle."""
+        if self._handle:
+            self._lib.mesh_server_free(self._handle)
+            self._handle = 0
 
     def __enter__(self) -> "MeshServer":
         self.start()
@@ -145,6 +155,7 @@ class MeshServer:
         are reported on the returned InvokeResult (``success=False`` and the
         ``error`` dict, e.g. ``{"code": "DIAL_FAILED", ...}``).
         """
+        self._ensure_open()
         str_handle = self._lib.mesh_invoke(
             self._handle,
             peer_id.encode("utf-8"),
@@ -171,6 +182,7 @@ class MeshServer:
 
     def list_nodes(self) -> list[dict[str, Any]]:
         """Return connected nodes with their reported method lists."""
+        self._ensure_open()
         str_handle = self._lib.mesh_list_nodes(self._handle)
         if not str_handle:
             raise MeshError(self._last_error())

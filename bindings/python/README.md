@@ -12,8 +12,12 @@ Python 包是纯 Python；动态库在**运行时**定位，不随包分发。�
 # 1. 安装包（pip >= 21，monorepo 子目录；也可装 Release 里的 wheel）
 pip install "git+https://github.com/RainbowXie/grpc-mesh.git@python-v0.1.0a2#subdirectory=bindings/python"
 
-# 2. 下载预构建动态库（linux x86_64），运行时指向它
-curl -LO https://github.com/RainbowXie/grpc-mesh/releases/download/python-v0.1.0a2/libmesh-linux-x86_64.so
+# 2. 下载预构建动态库（linux x86_64）并校验完整性，运行时指向它
+curl --fail --location --output libmesh-linux-x86_64.so \
+  https://github.com/RainbowXie/grpc-mesh/releases/download/python-v0.1.0a2/libmesh-linux-x86_64.so
+curl --fail --location --output SHA256SUMS \
+  https://github.com/RainbowXie/grpc-mesh/releases/download/python-v0.1.0a2/SHA256SUMS
+grep libmesh-linux-x86_64.so SHA256SUMS | sha256sum -c -
 export GRPC_MESH_LIB=$PWD/libmesh-linux-x86_64.so
 ```
 
