@@ -10,7 +10,7 @@
 #   dist/RELEASE_MANIFEST.json       (parent/node commits, versions, toolchains)
 #   dist/SHA256SUMS
 #
-# Usage: release_java_alpha.sh [output-dir]
+# Usage: JAVA_BINDING_VERSION=0.1.0-alphaN release_java_alpha.sh [output-dir]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
