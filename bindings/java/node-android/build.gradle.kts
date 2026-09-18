@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "io.grpc-mesh"
-version = "0.1.0-alpha1"
+version = providers.gradleProperty("bindingVersion").orElse("0.1.0-alpha1").get()
 
 android {
     namespace = "io.mesh.node.android"

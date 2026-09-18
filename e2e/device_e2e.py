@@ -222,6 +222,11 @@ def main():
                   r.success and bytes(r.result) == payload,
                   getattr(r, "error", None) and r.error.get("message"))
 
+            r = mesh.invoke(DEV_NODE_ID, "java.echo", b"", 8000)
+            check("6.2 empty payload reaches Java without native UB",
+                  r.success and bytes(r.result) == b"",
+                  getattr(r, "error", None) and r.error.get("message"))
+
             r = mesh.invoke(DEV_NODE_ID, "java.json", b"{}", 8000)
             meta = json.loads(bytes(r.result).decode()) if r.success else {}
             # The python invoker does not send a correlation id; the handler

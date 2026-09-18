@@ -5,7 +5,7 @@ plane over TLS, reports its method list and serves remote invocations
 through Java handlers.
 
 * Package `io.mesh.node`, artifacts `io.grpc-mesh:node-core` (pure Java) and
-  `io.grpc-mesh:node-android` (AAR, `0.1.0-alpha1`).
+  `io.grpc-mesh:node-android` (latest Alpha: `0.1.0-alpha2`).
 * Java 17, Android `minSdk 24`.
 * **The Alpha AAR ships exactly one native ABI: `arm64-v8a`.** Running on
   another ABI fails at load with a `NativeLibraryException` naming the

@@ -16,6 +16,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/dist/node-java-alpha}"
 SDK="${ANDROID_HOME:-/home/ethan/Android/Sdk}"
+VERSION="${JAVA_BINDING_VERSION:-0.1.0-alpha1}"
 
 PARENT_COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 NODE_COMMIT="$(git -C "$ROOT/grpc-mesh-node" rev-parse HEAD)"
@@ -46,10 +47,9 @@ git -C "$ROOT/grpc-mesh-node" archive "$NODE_COMMIT" | tar -x -C "$WORK/grpc-mes
 (
   cd "$WORK/bindings/java"
   echo "sdk.dir=$SDK" > local.properties
-  ./gradlew --no-daemon :node-android:assembleRelease
+  ./gradlew --no-daemon -PbindingVersion="$VERSION" :node-android:assembleRelease
 )
 
-VERSION="0.1.0-alpha1"
 AAR="$WORK/bindings/java/node-android/build/outputs/aar/node-android-release.aar"
 SO="$WORK/grpc-mesh-node/target/aarch64-linux-android/release/libgrpc_mesh_node.so"
 HDR="$WORK/grpc-mesh-node/crates/grpc-mesh-node-ffi/include/grpc_mesh_node.h"
