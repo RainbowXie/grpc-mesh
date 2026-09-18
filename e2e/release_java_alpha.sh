@@ -38,8 +38,10 @@ git -C "$ROOT/grpc-mesh-node" archive "$NODE_COMMIT" | tar -x -C "$WORK/grpc-mes
 (
   cd "$WORK/grpc-mesh-node"
   cargo build -p grpc-mesh-node-ffi --release --target aarch64-linux-android
+  # Header generation runs on the host toolchain (the example binary itself
+  # is never the shipped artifact).
   cargo run   -p grpc-mesh-node-ffi --example gen_header --release \
-      --target aarch64-linux-android
+      --target x86_64-unknown-linux-gnu
 )
 (
   cd "$WORK/bindings/java"
