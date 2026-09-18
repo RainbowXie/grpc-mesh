@@ -44,3 +44,10 @@ bindings/python/*.egg-info/
 __pycache__/
 bindings/python/dist/
 demos/calculator-client/calculator-client
+
+# Java/Android binding build artifacts (task 7.1 gate; added early to avoid accidents)
+.gradle/
+build/
+bindings/java/node-core/hs_err_pid*.log
+bindings/java/**/core.*
+bindings/java/local.properties
