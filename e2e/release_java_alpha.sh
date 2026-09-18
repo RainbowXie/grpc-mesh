@@ -64,7 +64,7 @@ cp "$HDR" "$OUT/grpc_mesh_node.h"
 
 # --- gate: AAR declares exactly arm64-v8a and its .so matches the build ------
 unzip -o -j "$AAR" 'jni/arm64-v8a/libgrpc_mesh_node.so' -d "$WORK/aar-check" >/dev/null
-ABI_DIRS="$(unzip -l "$AAR" | awk '/jni\// {print $4}' | cut -d/ -f2 | sort -u)"
+ABI_DIRS="$(unzip -l "$AAR" | awk '/jni\/[^/]+\// {print $4}' | cut -d/ -f2 | grep -v '^$' | sort -u)"
 [ "$ABI_DIRS" = "arm64-v8a" ] || { echo "gate: unexpected ABIs: $ABI_DIRS" >&2; exit 1; }
 cmp "$WORK/aar-check/libgrpc_mesh_node.so" "$SO" \
   || { echo "gate: AAR .so differs from built .so" >&2; exit 1; }
