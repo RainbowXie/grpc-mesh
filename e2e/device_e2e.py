@@ -98,7 +98,13 @@ def build_dex(java_dir, sdk, work):
                "-cp", core_classes, f"{src}/MeshSmokeMain.java")
     if javac.returncode:
         raise SystemExit(f"javac failed:\n{javac.stderr}")
-    d8 = f"{sdk}/build-tools/34.0.0/d8"
+    # Prefer the newest available d8: build-tools 34's r8 chokes on some
+    # AGP-compiled class files (AAR consumer path) with an NPE.
+    d8 = next(
+        (f"{sdk}/build-tools/{bt}/d8"
+         for bt in sorted(os.listdir(f"{sdk}/build-tools"), reverse=True)
+         if os.path.exists(f"{sdk}/build-tools/{bt}/d8")),
+        f"{sdk}/build-tools/34.0.0/d8")
     jar_path = f"{work}/mesh-smoke.jar"
     dex_out = f"{work}/dex"
     os.makedirs(dex_out, exist_ok=True)
