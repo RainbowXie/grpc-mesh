@@ -69,6 +69,21 @@ def gen_certs(work, host_ip):
     return ca_crt, srv_crt, srv_key
 
 
+def dist_aar(dist):
+    explicit = os.environ.get("DIST_AAR")
+    if explicit:
+        return explicit
+    candidates = sorted(
+        name for name in os.listdir(dist)
+        if name.startswith("node-android-") and name.endswith(".aar")
+    )
+    if len(candidates) != 1:
+        raise SystemExit(
+            f"DIST_DIR must contain exactly one node-android AAR, found {candidates}"
+        )
+    return os.path.join(dist, candidates[0])
+
+
 def build_dex(java_dir, sdk, work):
     """Compiles the smoke main against node-core and dexes everything.
 
@@ -79,17 +94,7 @@ def build_dex(java_dir, sdk, work):
     dist = os.environ.get("DIST_DIR")
     core_classes = f"{java_dir}/node-core/build/classes/java/main"
     if dist:
-        aar = os.environ.get("DIST_AAR")
-        if not aar:
-            candidates = sorted(
-                name for name in os.listdir(dist)
-                if name.startswith("node-android-") and name.endswith(".aar")
-            )
-            if len(candidates) != 1:
-                raise SystemExit(
-                    f"DIST_DIR must contain exactly one node-android AAR, found {candidates}"
-                )
-            aar = os.path.join(dist, candidates[0])
+        aar = dist_aar(dist)
         subprocess.run(["unzip", "-o", "-j", aar, "classes.jar", "-d", work],
                        check=True, capture_output=True)
         combined = f"{work}/dist-classes"
@@ -143,9 +148,9 @@ def build_dex(java_dir, sdk, work):
 def extract_aar_so(java_dir, work):
     dist = os.environ.get("DIST_DIR")
     if dist:
-        # Consumer mode: verify the standalone .so matches the one inside
-        # the released AAR, then push the artifact bytes.
-        aar = f"{dist}/node-android-0.1.0-alpha1.aar"
+        # Consumer mode: push the native bytes extracted from the exact AAR
+        # whose classes were dexed above.
+        aar = dist_aar(dist)
     else:
         aar = f"{java_dir}/node-android/build/outputs/aar/node-android-release.aar"
     if not os.path.exists(aar):
