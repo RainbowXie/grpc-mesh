@@ -108,9 +108,14 @@ def build_dex(java_dir, sdk, work):
         subprocess.run(["rm", "-rf", combined], check=True)
     subprocess.run(["cp", "-r", (combined_consumer or core_classes), combined], check=True)
     subprocess.run(["cp", "-r", f"{out}/.", combined], check=True)
+    def class_files(tree):
+        for root, _, files in os.walk(tree):
+            for f in files:
+                if f.endswith(".class") and "module-info" not in f:
+                    yield os.path.join(root, f)
+
     result = sh(d8, "--release", "--lib", f"{sdk}/platforms/android-34/android.jar",
-                "--output", dex_out,
-                *(os.path.join(root, f) for root, _, files in os.walk(combined) for f in files))
+                "--output", dex_out, *class_files(combined))
     if result.returncode:
         raise SystemExit(f"d8 failed:\n{result.stderr}")
     import zipfile
