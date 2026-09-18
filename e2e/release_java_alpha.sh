@@ -66,13 +66,16 @@ cp "$HDR" "$OUT/grpc_mesh_node.h"
 unzip -o -j "$AAR" 'jni/arm64-v8a/libgrpc_mesh_node.so' -d "$WORK/aar-check" >/dev/null
 ABI_DIRS="$(unzip -l "$AAR" | awk '/jni\/[^/]+\// {print $4}' | cut -d/ -f2 | grep -v '^$' | sort -u)"
 [ "$ABI_DIRS" = "arm64-v8a" ] || { echo "gate: unexpected ABIs: $ABI_DIRS" >&2; exit 1; }
-# AGP strips packaged jniLibs, so the AAR-embedded .so is never
-# byte-identical to the linker output; the ELF build-id survives stripping
-# and is the identity guarantee.
-AAR_BID="$(readelf -n "$WORK/aar-check/libgrpc_mesh_node.so" | awk '/Build ID/ {print $3}')"
-SO_BID="$(readelf -n "$SO" | awk '/Build ID/ {print $3}')"
-[ -n "$SO_BID" ] && [ "$AAR_BID" = "$SO_BID" ] \
-  || { echo "gate: AAR .so build-id ($AAR_BID) != built .so ($SO_BID)" >&2; exit 1; }
+# AGP strips packaged jniLibs (with its own strip variant), so the
+# AAR-embedded .so is never byte-identical to the linker output. Identity
+# gate: the exported dynamic symbol surface must be exactly equal.
+AAR_SYMS="$(nm -D --defined-only "$WORK/aar-check/libgrpc_mesh_node.so" | awk '{print $3}' | sort)"
+SO_SYMS="$(nm -D --defined-only "$SO" | awk '{print $3}' | sort)"
+if [ "$AAR_SYMS" != "$SO_SYMS" ]; then
+  echo "gate: AAR .so symbol surface differs from built .so" >&2
+  diff <(echo "$SO_SYMS") <(echo "$AAR_SYMS") | head >&2
+  exit 1
+fi
 
 # --- manifest (task 7.5) ------------------------------------------------------
 ABI_MAJOR="$(grep -oE '#define MESH_NODE_ABI_VERSION \(\(([0-9]+)' "$HDR" | grep -oE '[0-9]+$')"
