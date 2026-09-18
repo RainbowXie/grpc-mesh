@@ -57,16 +57,16 @@
 
 ## 7. 分发与文档
 
-- [ ] 7.1 更新 `.gitignore` 和 CI 门禁，禁止提交 `.so`、`.a`、AAR、Cargo target 与 Gradle build 产物
-- [ ] 7.2 编写 Node C ABI 文档，明确状态机、线程模型、回调契约、内存所有权、错误码和 ABI 兼容规则
-- [ ] 7.3 编写 Java/Android binding 文档，明确 arm64-v8a 限制、依赖方式、处理器并发、异常与关闭语义
-- [ ] 7.4 建立 tag 驱动的 Alpha release 流程，从干净 checkout 生成 AAR、独立 `.so`、C 头文件、manifest 和 SHA-256
-- [ ] 7.5 manifest 记录父仓 commit、grpc-mesh-node commit、ABI/crate/binding 版本、NDK、Rust toolchain、minSdk 和目标 ABI
-- [ ] 7.6 在全新消费工程安装发布 AAR，不引用本地源码路径，完成一次真实接入和远端方法调用
+- [x] 7.1 更新 `.gitignore` 和 CI 门禁，禁止提交 `.so`、`.a`、AAR、Cargo target 与 Gradle build 产物
+- [x] 7.2 编写 Node C ABI 文档，明确状态机、线程模型、回调契约、内存所有权、错误码和 ABI 兼容规则
+- [x] 7.3 编写 Java/Android binding 文档，明确 arm64-v8a 限制、依赖方式、处理器并发、异常与关闭语义
+- [x] 7.4 建立 tag 驱动的 Alpha release 流程，从干净 checkout 生成 AAR、独立 `.so`、C 头文件、manifest 和 SHA-256
+- [x] 7.5 manifest 记录父仓 commit、grpc-mesh-node commit、ABI/crate/binding 版本、NDK、Rust toolchain、minSdk 和目标 ABI
+- [x] 7.6 在全新消费工程安装发布 AAR，不引用本地源码路径，完成一次真实接入和远端方法调用
 
 ## 8. 收尾审计
 
-- [ ] 8.1 运行 `openspec validate node-ffi-java-binding` 并完成全部任务与场景映射
-- [ ] 8.2 运行 GitNexus `detect_changes(scope=all)`，审查 HIGH/CRITICAL 影响、受影响流程与循环依赖
-- [ ] 8.3 执行 code-audit、premise-audit 和 receipt-audit，主动反证句柄、回调、关闭、JNI 引用与 artifact 一致性断言
-- [ ] 8.4 最后一次写入后核对父仓/子仓 HEAD、gitlink、远端 ref、工作区、release artifact hash 和 manifest，分仓提交并推送
+- [x] 8.1 运行 `openspec validate node-ffi-java-binding` 并完成全部任务与场景映射
+- [x] 8.2 运行 GitNexus `detect_changes(scope=all)`，审查 HIGH/CRITICAL 影响、受影响流程与循环依赖
+- [x] 8.3 执行 code-audit、premise-audit 和 receipt-audit，主动反证句柄、回调、关闭、JNI 引用与 artifact 一致性断言
+- [x] 8.4 最后一次写入后核对父仓/子仓 HEAD、gitlink、远端 ref、工作区、release artifact hash 和 manifest，分仓提交并推送
