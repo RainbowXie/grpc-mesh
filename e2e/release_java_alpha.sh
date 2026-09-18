@@ -27,7 +27,7 @@ if [ "$PARENT_DIRTY" -ne 0 ] || [ "$NODE_DIRTY" -ne 0 ]; then
 fi
 
 WORK="$(mktemp -d /tmp/grpc-mesh-java-release.XXXXXX)"
-trap 'rm -rf "$WORK"' EXIT
+trap "" EXIT
 mkdir -p "$OUT"
 
 # --- clean checkout of both trees -------------------------------------------
