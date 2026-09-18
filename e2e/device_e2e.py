@@ -6,8 +6,8 @@ Verifies (tasks 5.4 / 6.1-6.4 of node-ffi-java-binding):
 - AAR .so loads on device and passes the ABI check
 - node connects over the LAN through TLS with the issued CA
 - sorted method snapshot reported to the control plane
-- generic Invoke reaches Java handlers: binary echo (NUL bytes), request
-  metadata verbatim, exception mapping, NOT_FOUND
+- generic Invoke reaches Java handlers: binary echo (NUL and empty payloads),
+  request metadata verbatim, exception mapping, NOT_FOUND
 - concurrent invokes stay isolated
 - clean close drains the session (no residual connection)
 
@@ -79,7 +79,17 @@ def build_dex(java_dir, sdk, work):
     dist = os.environ.get("DIST_DIR")
     core_classes = f"{java_dir}/node-core/build/classes/java/main"
     if dist:
-        aar = f"{dist}/node-android-0.1.0-alpha1.aar"
+        aar = os.environ.get("DIST_AAR")
+        if not aar:
+            candidates = sorted(
+                name for name in os.listdir(dist)
+                if name.startswith("node-android-") and name.endswith(".aar")
+            )
+            if len(candidates) != 1:
+                raise SystemExit(
+                    f"DIST_DIR must contain exactly one node-android AAR, found {candidates}"
+                )
+            aar = os.path.join(dist, candidates[0])
         subprocess.run(["unzip", "-o", "-j", aar, "classes.jar", "-d", work],
                        check=True, capture_output=True)
         combined = f"{work}/dist-classes"
