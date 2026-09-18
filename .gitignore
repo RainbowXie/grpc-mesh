@@ -51,3 +51,9 @@ build/
 bindings/java/node-core/hs_err_pid*.log
 bindings/java/**/core.*
 bindings/java/local.properties
+
+# Native build outputs never enter Git (node-binding-distribution)
+*.so
+*.a
+*.aar
+!grpc-mesh-node/crates/grpc-mesh-node-ffi/tests/fixtures/**
