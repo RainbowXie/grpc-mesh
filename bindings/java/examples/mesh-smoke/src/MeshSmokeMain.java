@@ -23,6 +23,40 @@ public final class MeshSmokeMain {
         String nodeId = args[2];
         String token = args[3];
 
+        // Supported-version (Android 12/API 31+) check: the custom handshake
+        // config API must construct and serialize on the device without core
+        // library desugaring, and the reserved key must be rejected before
+        // any JNI call. Runs before the node starts so it cannot mask a
+        // handshake failure.
+        NodeConfig custom =
+                NodeConfig.builder()
+                        .serverAddress(serverAddress)
+                        .caCertPem(caPem)
+                        .nodeId(nodeId)
+                        .token(token)
+                        .addFeature("smoke")
+                        .addMetadata("region", "  eu  ")
+                        .addMetadata("empty", "")
+                        .build();
+        String customJson = custom.toJson();
+        if (!customJson.contains("\"region\":\"  eu  \"")
+                || !customJson.contains("\"empty\":\"\"")
+                || !customJson.contains("\"smoke\"")) {
+            throw new AssertionError("custom handshake config serialization changed");
+        }
+        try {
+            NodeConfig.builder()
+                    .serverAddress(serverAddress)
+                    .nodeId(nodeId)
+                    .token(token)
+                    .addMetadata("mesh.methods", "fake.Service/NotRegistered");
+            throw new AssertionError("reserved metadata key must be rejected");
+        } catch (io.mesh.node.NodeConfigException expected) {
+            // Expected: the framework key is reserved.
+        }
+        System.out.println("SMOKE:config-ok");
+        System.out.flush();
+
         NodeConfig config =
                 NodeConfig.builder()
                         .serverAddress(serverAddress)

@@ -20,9 +20,8 @@ public final class NodeConfig {
      * directly constructed configs.
      */
     private static final List<String> RESERVED_METADATA_KEYS =
-            // Not List.of: this module supports Android minSdk 24, and
-            // List.of/Set.of only exist from API 30, so a consumer without
-            // core library desugaring would hit NoSuchMethodError.
+            // A fixed, externally immutable set; the implementation does not
+            // depend on any API-level collection factory.
             Collections.unmodifiableList(Arrays.asList("mesh.methods", "platform", "arch"));
 
     private final String serverAddress;
@@ -53,10 +52,9 @@ public final class NodeConfig {
         this.reconnectBaseDelayMs = builder.reconnectBaseDelayMs;
         this.reconnectMaxDelayMs = builder.reconnectMaxDelayMs;
         this.stopGraceSeconds = builder.stopGraceSeconds;
-        // API 24 compatibility: List/Map.copyOf are API 31 only, and the
-        // android module ships minSdk 24 without core library desugaring.
-        // Unmodifiable views over defensive copies keep both the snapshot
-        // isolation and the API floor.
+        // Unmodifiable views over defensive copies keep the snapshot detached
+        // from later Builder mutation; the choice is about snapshot semantics,
+        // not about an API-level collection factory.
         this.features = Collections.unmodifiableList(new ArrayList<>(builder.features));
         this.metadata = Collections.unmodifiableMap(new LinkedHashMap<>(builder.metadata));
     }

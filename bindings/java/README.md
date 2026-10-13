@@ -7,7 +7,8 @@ through Java handlers.
 * Package `io.mesh.node`, artifacts `io.grpc-mesh:node-core` (pure Java) and
   `io.grpc-mesh:node-android`. Latest published Alpha: `0.1.0-alpha2`; the
   handshake configuration API below ships in `0.1.0-alpha3`.
-* Java 17, Android `minSdk 24`.
+* Java 17, Android 12/`minSdk 31`. Support below API 31 was withdrawn by the
+  user; the published `0.1.0-alpha2` predates that decision.
 * **The Alpha AAR ships exactly one native ABI: `arm64-v8a`.** Running on
   another ABI fails at load with a `NativeLibraryException` naming the
   device's supported ABIs — there is no fallback and no silent degradation.
@@ -70,9 +71,10 @@ NodeConfig config = NodeConfig.builder()
 * `toJson()` escapes quotes, backslashes, control characters and newlines,
   and passes non-ASCII text through as UTF-8.
 
-These APIs reference only collection methods available since Android API 24,
-so a consumer with `minSdk 24` does **not** need core library desugaring to
-construct or serialize a config. No capability allow-list, extra protocol
+These APIs use a plain defensive-copy implementation and do **not** require
+core library desugaring. The binding now targets Android 12/`minSdk 31`
+(the user raised the floor from API 24, so API 24–30 are out of scope). No
+capability allow-list, extra protocol
 field or new C ABI symbol is involved: the two fields map onto the existing
 `node.features` / `node.metadata` JSON keys and C ABI v1.
 

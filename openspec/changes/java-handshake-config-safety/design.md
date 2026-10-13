@@ -4,6 +4,8 @@
 
 动机与范围见 proposal.md。本设计以审查提交 `14147a87e6842250fe48243a88047fa46eadc2cf` 为现状基线：Java 在构造配置时无条件调用 API 31 才提供的 `List.copyOf`、`Map.copyOf`，Android 模块仍声明 minSdk 24 且未配置 core library desugaring；`addMetadata` 裁剪 value 并把 null 替换为空字符串。Rust `EmbeddedNodeConfig::handshake` 先写框架 metadata，再写用户 metadata，因此存在覆盖。
 
+用户在本 change 执行中主动调整支持范围：Android 最低支持版本改为 Android 12/API 31（Decision 6）。原 API 24–30 兼容性验收未完成且不再作为门槛；已有防御性复制实现保留不变。
+
 已执行探针确认 Java JSON 可以解析、Builder 快照隔离成立，实际 TLS/yamux 握手收到规范化 feature 和 metadata；也确认 `mesh.methods` 可以变为伪造的方法名。该捕获端只读取握手而不实现完整控制协议，运行随后出现 ShutdownTimeoutException，因此证据只支持握手字段结论，不支持完整生命周期或业务调用成功。JVM 7/7 与 lint 通过不能替代低版本 Android 验证；外部 Server 的 `no_eligible_nodes` 因果关系尚未核实。
 
 ## Goals / Non-Goals
@@ -14,13 +16,13 @@
 
 **Non-Goals:**
 - 不新增业务 capability 筛选、readiness 计算或业务 metadata 键约定；不将通用 binding 注释绑定到外部项目内部函数。
-- 不扩展 Android ABI，不提高 minSdk，不更改 JNI 回调与关闭设计，不重写通用 JSON 序列化架构。
+- 不扩展 Android ABI，不更改 JNI 回调与关闭设计，不重写通用 JSON 序列化架构；Android 最低支持版本按用户决定提高到 API 31（见 Decision 6），不算作本 change 的其他范围扩张。
 
 ## Decisions
 
-### 1. 使用兼容 API 24 的不可变集合快照
+### 1. 保留防御性复制的不可变集合快照
 
-Java 构造器采用 `Collections.unmodifiableList(new ArrayList<>(...))` 与 `Collections.unmodifiableMap(new LinkedHashMap<>(...))`，保持防御性复制及稳定迭代顺序。拒绝提高 minSdk 的方案，因为会收缩既有支持范围；不采用要求消费方配置脱糖的方案，因为兼容性责任应由 SDK 自身承担。集合顺序仅用于可重复序列化，不成为线上协议约束。
+Java 构造器采用 `Collections.unmodifiableList(new ArrayList<>(...))` 与 `Collections.unmodifiableMap(new LinkedHashMap<>(...))`，保持防御性复制及稳定迭代顺序。该实现已通过测试，且在新的 API 31 下限下仍然正确，因此保留、不因提高下限而重写；不再以“兼容 API 24”作为选择理由（见 Decision 6）。集合顺序仅用于可重复序列化，不成为线上协议约束。
 
 ### 2. metadata 保真且非法输入显式失败
 
@@ -38,18 +40,22 @@ key 为 null、空白或含首尾空白时拒绝，不通过 trim 隐式重命�
 
 纯 Java 测试用标准 JSON 解析器验证数组类型、转义、默认配置、空字符串、value 空白、重复 key 和快照隔离。Rust/C ABI 测试覆盖合法字段及保留键/非法值，直接构造配置是必测反例。网络测试使用本仓完整控制协议的测试 Server，捕获并断言真实握手，同时验证方法注册、替换、注销及正常关闭；不把仅捕获握手的探针退出码当作生命周期通过。
 
-Android 回归使用消费工程且不启用 core library desugaring，在支持的 arm64-v8a API 24 与 API 30 环境执行 build/toJson；同时检查编译后方法引用和 lint。若最低版本环境不可用，保留验收阻塞并记录，不能用 API 31+ 设备通过代替。现有 JNI payload、并发和关闭测试作为回归继续运行。
+Android 回归使用消费工程且不启用 core library desugaring，在受支持的 arm64-v8a Android 12/API 31 及以上环境执行默认与自定义 build/toJson；同时检查编译后方法引用和 lint。支持范围由用户调整为 API 31+（Decision 6）：可用设备（API 33/34/36）属于受支持范围，可用于回归；若缺少 API 31 精确运行时，如实记录为剩余风险，不声称已实测最低版本。现有 JNI payload、并发和关闭测试作为回归继续运行。
 
 ### 5. 新版本承载公共 API 与校验变化
 
 Java API 新入口与原生校验必须来自同一 clean-source 构建，发布 manifest 绑定父仓提交和 Node gitlink；AAR 与独立 `.so` 不允许混用来源。版本号在 apply 的版本任务中依据现有发布序列选取下一个未使用 Alpha，并使 Gradle、发布脚本和示例一致；不复用或替换已发布 Alpha2。准备可发布产物与验证不等于授权上传，实际发布须由用户确认。
+
+### 6. 用户主动提高 Android 最低支持版本到 API 31
+
+用户在本 change 执行中决定把 Android 最低支持版本从 API 24 提高到 Android 12/API 31，API 24–30 不再支持。因此 `node-android` 的 `minSdk`、发布 manifest 的 `android_min_sdk` 和 README 统一为 `31`；原以 API 24 为理由的兼容性注释和验收场景改为 API 31+ 口径。已通过的集合实现保持不变（它在 API 31 下同样正确）。旧版 API 24–30 回归未完成，且不再作为验收门槛；不声称旧版本验收通过。
 
 ## Risks / Trade-offs
 
 - [历史配置使用保留 key] → 在迁移说明列出三个 key 和拒绝规则；调用方删除手工覆盖，方法清单使用真实注册 API。
 - [元数据 key 校验比原实现严格] → 明确标注行为变化，对每类非法输入保留可诊断错误，禁止静默 trim。
 - [Rust 公开配置可在解析后修改] → 在连接前重复执行共享校验，用直接构造/修改配置测试主动反证。
-- [测试只证明 JVM 或高版本 Android] → 最低版本运行、API 引用检查与真实握手分别设验收门槛。
+- [测试只证明 JVM 或未覆盖的 Android 版本] → 受支持范围已是 Android 12/API 31+，在该范围内用可用真机做产物回归；若缺 API 31 精确运行时则如实记录为剩余风险，不谎称实测最低版本。
 - [实现文件接近行数约束] → apply 前检查长度，单文件强制低于 1000 行；仅在必要时拆分验证代码，拆分前分析图影响，不借此扩张重构。
 
 ## Migration Plan

@@ -203,13 +203,15 @@ def main():
             ["adb", "-s", serial, "shell", remote],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         try:
-            marker = {"running": False, "closed": False, "state_after": ""}
+            marker = {"running": False, "closed": False, "state_after": "", "config_ok": False}
 
             def reader():
                 for line in device.stdout:
                     line = line.strip()
                     if line:
                         print(f"[device] {line}")
+                    if line.startswith("SMOKE:config-ok"):
+                        marker["config_ok"] = True
                     if line.startswith("SMOKE:running"):
                         marker["running"] = True
                     if line.startswith("SMOKE:closed"):
@@ -221,6 +223,11 @@ def main():
 
             wait_for(lambda: marker["running"], 30, "device node running marker")
             check("5.4 AAR .so loaded + ABI check + node RUNNING on device", True)
+            check(
+                "4.2 supported API31+ custom build/toJson + reserved-key rejection on device",
+                marker["config_ok"],
+                "missing SMOKE:config-ok marker",
+            )
 
             nodes = wait_for(
                 lambda: [n for n in mesh.list_nodes() if n["node_id"] == DEV_NODE_ID] or None,

@@ -36,13 +36,17 @@ Java Builder SHALL 拒绝 null、空白 key 和带首尾空白的 key，拒绝 n
 - **WHEN** Java 宿主尝试设置 `mesh.methods`、`platform` 或 `arch`
 - **THEN** 配置在进入原生层前被拒绝，异常指出该 key 由框架管理
 
-### Requirement: Java 配置兼容最低支持 Android 版本
-在既有支持的 `arm64-v8a` 设备上，binding SHALL 从 Android API 24 起支持构造默认及自定义握手配置，不依赖 API 31 才提供的集合方法，也不得要求消费方另行配置 core library desugaring 才能执行配置构造。Android ABI 和 minSdk 声明 SHALL 保持一致。
+### Requirement: Java 配置支持 Android 12/API 31 及以上
 
-#### Scenario: Android API 24 至 30 默认配置
-- **WHEN** 未开启 core library desugaring 的 API 24 至 30 消费工程调用默认 Builder 的 build 和 toJson
+在 `arm64-v8a` 上，binding SHALL 支持 Android API 31（Android 12）及以上的设备构造默认及自定义握手配置，且不要求消费方配置 core library desugaring 才能执行配置构造。Android `minSdk`、AAR 打包声明与发布 manifest 中的 `android_min_sdk` SHALL 一致为 `31`。
+
+用户在本 change 执行中主动将最低支持版本从 API 24 提高到 API 31，因此 API 24–30 不在支持范围，其历史验收未完成且不再作为门槛；本要求不声明旧版本兼容性已通过。
+
+#### Scenario: 支持的 Android 版本默认配置
+- **WHEN** 未开启 core library desugaring 的 Android 12/API 31 及以上消费工程调用默认 Builder 的 build 和 toJson
 - **THEN** 两个操作成功，不抛出 `NoSuchMethodError`
 
-#### Scenario: 最低版本自定义配置
-- **WHEN** 受支持的 API 24 消费工程添加 feature 和 metadata 并构造配置
+#### Scenario: 支持的版本自定义配置
+- **WHEN** 受支持的 Android 12/API 31 及以上消费工程添加 feature 和 metadata 并构造配置
 - **THEN** 配置构造与序列化成功，集合快照仍满足隔离要求
+

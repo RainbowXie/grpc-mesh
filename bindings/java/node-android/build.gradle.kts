@@ -11,7 +11,11 @@ android {
     ndkVersion = "29.0.14033849"
 
     defaultConfig {
-        minSdk = 24
+        // User raised the supported floor from API 24 to Android 12/API 31
+        // (java-handshake-config-safety Decision 6); consumers below API 31
+        // are out of scope, so minSdk, the release manifest and the docs must
+        // all say 31.
+        minSdk = 31
         consumerProguardFiles("consumer-rules.pro")
     }
 
