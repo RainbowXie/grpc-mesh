@@ -23,11 +23,11 @@ public final class MeshSmokeMain {
         String nodeId = args[2];
         String token = args[3];
 
-        // Supported-version (Android 12/API 31+) check: the custom handshake
-        // config API must construct and serialize on the device without core
-        // library desugaring, and the reserved key must be rejected before
-        // any JNI call. Runs before the node starts so it cannot mask a
-        // handshake failure.
+        // Minimum-supported-version (Android 10/API 29) check: the custom
+        // handshake config API must construct and serialize on the device
+        // without core library desugaring, and the reserved key must be
+        // rejected before any JNI call. Runs before the node starts so it
+        // cannot mask a handshake failure.
         NodeConfig custom =
                 NodeConfig.builder()
                         .serverAddress(serverAddress)
