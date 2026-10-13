@@ -199,6 +199,29 @@ class NodeConfigTest {
         assertThrows(NodeConfigException.class, () -> minimal().addFeature("   "));
     }
 
+    @Test
+    void unicodeWhitespaceFeatureIsRejectedLikeTheNativeBoundary() {
+        // A blank feature must be rejected here too: the native normalizer
+        // would otherwise silently drop it after Java accepted it.
+        String[] blank = {
+            "\u00A0", "\u2003", "\u0085", "\u2007", "\u202F", "\u3000", "\u00A0\u2003\u3000"
+        };
+        for (String feature : blank) {
+            assertThrows(
+                    NodeConfigException.class,
+                    () -> minimal().addFeature(feature),
+                    "blank feature must be rejected");
+        }
+    }
+
+    @Test
+    void featureWithUnicodeWhitespaceEdgeButContentIsAccepted() {
+        // Only an all-whitespace tag is rejected; a tag with real content keeps
+        // its value here and the Rust normalizer trims it on the wire.
+        NodeConfig config = minimal().addFeature("\u00A0DG").build();
+        assertEquals("\u00A0DG", featureArray(config).get(0).getAsString());
+    }
+
     private static String[] featureStrings(NodeConfig config) {
         JsonArray features = featureArray(config);
         String[] values = new String[features.size()];

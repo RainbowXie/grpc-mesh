@@ -117,8 +117,13 @@ def build_dex(java_dir, sdk, work):
     src = f"{java_dir}/examples/mesh-smoke/src"
     out = f"{work}/smoke-classes"
     os.makedirs(out, exist_ok=True)
+    # Consumer mode compiles against the artifact too: a fresh environment
+    # without node-core/build must still work, and the API surface compiled
+    # must be the released one, not the repository's build cache.
+    compile_cp = combined_consumer or core_classes
+    print(f"[harness] javac -cp {compile_cp}")
     javac = sh("javac", "--release", "17", "-d", out,
-               "-cp", core_classes, f"{src}/MeshSmokeMain.java")
+               "-cp", compile_cp, f"{src}/MeshSmokeMain.java")
     if javac.returncode:
         raise SystemExit(f"javac failed:\n{javac.stderr}")
     # Prefer the newest available d8: build-tools 34's r8 chokes on some
@@ -136,6 +141,7 @@ def build_dex(java_dir, sdk, work):
     if os.path.isdir(combined):
         subprocess.run(["rm", "-rf", combined], check=True)
     subprocess.run(["cp", "-r", (combined_consumer or core_classes), combined], check=True)
+    print(f"[harness] dex binding classes from: {combined_consumer or core_classes}")
     subprocess.run(["cp", "-r", f"{out}/.", combined], check=True)
     def class_files(tree):
         for root, _, files in os.walk(tree):
