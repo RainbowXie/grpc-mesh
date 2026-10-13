@@ -20,8 +20,9 @@ public final class NodeConfig {
      * directly constructed configs.
      */
     private static final List<String> RESERVED_METADATA_KEYS =
-            // A fixed, externally immutable set; the implementation does not
-            // depend on any API-level collection factory.
+            // Arrays.asList + unmodifiableList: List.of/Set.of are API 30 and
+            // List.copyOf is API 31, so this keeps the set immutable at the
+            // API 29 floor without a higher-level collection factory.
             Collections.unmodifiableList(Arrays.asList("mesh.methods", "platform", "arch"));
 
     private final String serverAddress;
@@ -52,9 +53,9 @@ public final class NodeConfig {
         this.reconnectBaseDelayMs = builder.reconnectBaseDelayMs;
         this.reconnectMaxDelayMs = builder.reconnectMaxDelayMs;
         this.stopGraceSeconds = builder.stopGraceSeconds;
-        // Unmodifiable views over defensive copies keep the snapshot detached
-        // from later Builder mutation; the choice is about snapshot semantics,
-        // not about an API-level collection factory.
+        // Unmodifiable views over defensive copies: they give the snapshot
+        // isolation and stay within API 29 (List.copyOf/Map.copyOf are API 31;
+        // List.of/Map.of are API 30).
         this.features = Collections.unmodifiableList(new ArrayList<>(builder.features));
         this.metadata = Collections.unmodifiableMap(new LinkedHashMap<>(builder.metadata));
     }

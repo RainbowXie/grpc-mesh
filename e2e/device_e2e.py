@@ -51,12 +51,19 @@ def gen_certs(work, host_ip):
     srv_key = f"{work}/server.key"
     srv_crt = f"{work}/server.crt"
     san = f"subjectAltName=DNS:mesh-e2e-server,DNS:localhost,IP:127.0.0.1,IP:{host_ip}\n"
+    # Backdate the validity window by an hour: old devices can have a clock
+    # minutes behind the host (observed: API 29 Redmi Note 3 ~156 s behind),
+    # and a cert issued "now" then looks not-yet-valid to the node's rustls
+    # client, which is correct TLS. Widening the test window keeps the real
+    # device acceptance runnable without touching device settings.
+    not_before = sh("date", "-u", "-d", "-1 hour", "+%y%m%d%H%M%SZ").stdout.strip()
+    not_after = sh("date", "-u", "-d", "+2 days", "+%y%m%d%H%M%SZ").stdout.strip()
     # Always regenerate: certs are cheap and must carry today's host IP.
     sh("rm", "-f", ca_key, ca_crt, srv_key, srv_crt, f"{work}/server.csr")
     if True:
         sh("openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
            "-keyout", ca_key, "-out", ca_crt, "-subj", "/CN=mesh-e2e-ca",
-           "-days", "2")
+           "-not_before", not_before, "-not_after", not_after)
         sh("openssl", "req", "-newkey", "rsa:2048", "-nodes",
            "-keyout", srv_key, "-out", f"{work}/server.csr",
            "-subj", "/CN=mesh-e2e-server")
@@ -65,7 +72,8 @@ def gen_certs(work, host_ip):
         sh("openssl", "x509", "-req", "-in", f"{work}/server.csr",
            "-CA", ca_crt, "-CAkey", ca_key, "-CAcreateserial",
            "-extfile", f"{work}/server.ext",
-           "-out", srv_crt, "-days", "2")
+           "-not_before", not_before, "-not_after", not_after,
+           "-out", srv_crt)
     return ca_crt, srv_crt, srv_key
 
 

@@ -5,11 +5,11 @@
 - [x] 1.1 记录父仓、Node 子仓 HEAD/gitlink、工作区状态及审查基线，执行 GitNexus impact 检查 NodeConfig、配置解析和握手相关符号，产出 callers/processes/risk 及 UNKNOWN 补证记录，确认无未处理的影响分析阻塞。
 - [x] 1.2 添加纯 Java 配置测试，使用标准 JSON 解析器覆盖默认字段、数组类型、转义、重复 key 与 Builder 快照隔离，并以 value 空白丢失、null 转空串、保留 key 可写反例确认整改前失败。
 - [x] 1.3 添加 Rust/C ABI 配置失败测试，覆盖三个保留 key、空白/带首尾空白 key、null/非字符串 value 与直接构造/修改 Rust 配置；记录基线的伪造方法通告及测试失败输出。
-- [x] 1.4 记录不启用 core library desugaring 的 arm64-v8a Android 12/API 31+ 消费工程与可用设备/镜像的 API 级别，确认真实 API 31 运行时是否可得；API 31 精确运行时缺失时如实记录为剩余风险而非跳过验收。用户已主动将最低支持版本由 API 24 调为 API 31，旧 API 24–30 验收未完成且不再作为门槛。
+- [x] 1.4 记录不启用 core library desugaring 的 arm64-v8a Android 10/API 29 消费工程与可用设备，确认真实 API 29 运行时可得（设备 192.168.123.219:5555，Redmi Note 3，API 29，arm64-v8a）；用户最终将最低支持版本定为 API 29，取代中途的 API 31，旧 API 24–30 阻塞与 API 31 合同不再适用。
 
 ## 2. Java 配置修复
 
-- [x] 2.1 用防御性复制与不可修改集合替换无条件 List.copyOf/Map.copyOf，验证默认及自定义配置构造成功、快照隔离测试通过且字节码不再引用两个 API 31 方法；该实现予保留，不因用户将下限提到 API 31 而重写。
+- [x] 2.1 用防御性复制与不可修改集合替换无条件 List.copyOf/Map.copyOf，验证默认及自定义配置构造成功、快照隔离测试通过且字节码不再引用两个 API 31 方法；在 API 29 下限下不得依赖 API 30/31 方法，该实现予保留。
 - [x] 2.2 保留 metadata value 全部字符，拒绝 null、空白/带首尾空白 key 及 null value，保留空字符串和重复 key 最后赋值语义；验证每类输入的 JSON 内容或配置异常符合 node-java-binding delta。
 - [x] 2.3 在 Java Builder 拒绝 mesh.methods/platform/arch，保留 feature 和数组序列化能力，并删除业务 Server 内部函数和不可证实因果注释；验证保留 key 异常含具体名称且合法 feature/metadata 测试通过。
 
@@ -22,7 +22,7 @@
 ## 4. 集成与兼容性验收
 
 - [x] 4.1 使用本仓完整测试 Server 捕获 Java→JNI→Rust 的真实 TLS/yamux 握手，断言自定义 feature、metadata 原值及注册/替换/注销后的方法清单，验证正常停止关闭；保留 key 测试确认拒绝且不建立连接。
-- [x] 4.2 在受支持的 arm64-v8a Android 12/API 31+ 环境（不启用 core library desugaring）运行默认和自定义 build/toJson 测试，保存日志；执行 lint/API 引用检查。API 31 精确运行时不可用时如实记录剩余风险，不声称已实测最低版本。
+- [ ] 4.2 在真实最低支持的 arm64-v8a Android 10/API 29 设备（不启用 core library desugaring）上用最终产物运行默认和自定义 build/toJson 测试及 JNI payload/并发/关闭回归，保存日志；执行 lint/API 引用检查。不用强制安装绕过 SDK 下限；若 LAN 不通可用标准 adb reverse 并记录前置。原高版本结果不算入 API 29 验收。
 - [x] 4.3 重新执行 JVM、Rust、C ABI harness/header/symbol 与既有 Android payload/并发/关闭回归，记录命令、输入、stdout/stderr、退出码和测试数量；确认没有用旧缓存或高版本设备结果替代新测试。
 
 ## 5. 文档、版本和可发布产物
@@ -33,5 +33,5 @@
 
 ## 6. 审查与结单
 
-- [ ] 6.1 执行代码审查与前提反证，重点挑战 Android 12/API 31+ 支持范围声明、所有入口保留 key 保护、metadata 逐字符保真及方法清单权威性；对阻塞 findings 修复并递归复审，提交前完成 GitNexus detect_changes。
+- [ ] 6.1 执行代码审查与前提反证，重点挑战 Android 10/API 29+ 支持范围声明、所有入口保留 key 保护、metadata 逐字符保真及方法清单权威性；对阻塞 findings 修复并递归复审，提交前完成 GitNexus detect_changes。
 - [ ] 6.2 核对父仓/子仓最终提交、gitlink、任务证据与产物 manifest，运行 openspec validate java-handshake-config-safety --strict 并完成实现验收；以 git 提交与测试证据结单，不再生成已删除的四角色回滚材料；未完成真实验证或版本交付时保持对应任务未勾选，不自动归档或发布。

@@ -88,7 +88,7 @@ cat > "$OUT/RELEASE_MANIFEST.json" <<EOF
   "c_abi_version": "${ABI_MAJOR}.0",
   "crate_version": "$(grep -m1 '^version' "$WORK/grpc-mesh-node/crates/grpc-mesh-node-ffi/Cargo.toml" | awk '{print $3}' | tr -d '"')",
   "java_binding_version": "$VERSION",
-  "android_min_sdk": 31,
+  "android_min_sdk": 29,
   "target_abis": ["arm64-v8a"],
   "rust_toolchain": "$(rustc --version | head -1)",
   "android_ndk": "29.0.14033849",
