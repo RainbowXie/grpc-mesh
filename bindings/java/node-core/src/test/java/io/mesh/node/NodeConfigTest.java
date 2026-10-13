@@ -222,6 +222,31 @@ class NodeConfigTest {
         assertEquals("\u00A0DG", featureArray(config).get(0).getAsString());
     }
 
+    @Test
+    void controlOnlyFeatureIsRejectedAfterTrim() {
+        // U+0000/U+001C are not Unicode White_Space, so a raw-input check let
+        // them through and String.trim() then produced an empty feature which
+        // the native normalizer silently dropped. The check now runs on the
+        // trimmed value, so these inputs must be rejected.
+        String[] blankAfterTrim = {
+            "\u0000", "\u001C", "\u0000 \u0000", "\u0000\u2003\u0000", "\u001C\u00A0\u001C"
+        };
+        for (String feature : blankAfterTrim) {
+            assertThrows(
+                    NodeConfigException.class,
+                    () -> minimal().addFeature(feature),
+                    "feature blank after trim must be rejected");
+        }
+    }
+
+    @Test
+    void featureWithControlEdgesButContentIsAcceptedAndTrimmed() {
+        // ASCII/control edges are trimmed (existing normalization) and the
+        // content is kept; this is the value actually stored.
+        NodeConfig config = minimal().addFeature("\u0000DG\u001C").build();
+        assertEquals("DG", featureArray(config).get(0).getAsString());
+    }
+
     private static String[] featureStrings(NodeConfig config) {
         JsonArray features = featureArray(config);
         String[] values = new String[features.size()];

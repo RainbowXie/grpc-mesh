@@ -320,16 +320,22 @@ public final class NodeConfig {
 
         /**
          * Adds a handshake feature tag; Rust trims, lowercases and dedupes on
-         * the wire. A tag made only of Unicode White_Space is rejected with the
-         * same predicate used for metadata keys: otherwise a non-breaking space
-         * (U+00A0/U+2003) would pass Java and be silently dropped by the native
-         * normalizer, contradicting the documented "reject blank feature".
+         * the wire. The blank check runs on the value that will actually be
+         * stored: {@code String.trim()} drops ASCII controls (<= U+0020) that
+         * are not Unicode White_Space, so judging the raw input would let
+         * U+0000/U+001C trim down to an empty feature that the native
+         * normalizer then silently removes. Unicode White_Space-only tags are
+         * rejected with the same predicate as metadata keys.
          */
         public Builder addFeature(String feature) {
-            if (feature == null || isAllUnicodeWhitespace(feature)) {
+            if (feature == null) {
                 throw new NodeConfigException("feature must be non-empty");
             }
-            features.add(feature.trim());
+            String normalized = feature.trim();
+            if (isAllUnicodeWhitespace(normalized)) {
+                throw new NodeConfigException("feature must be non-empty");
+            }
+            features.add(normalized);
             return this;
         }
 
