@@ -232,7 +232,7 @@ def main():
             wait_for(lambda: marker["running"], 30, "device node running marker")
             check("5.4 AAR .so loaded + ABI check + node RUNNING on device", True)
             check(
-                "4.2 supported API31+ custom build/toJson + reserved-key rejection on device",
+                "4.2 minimum supported API (Android 10/API 29) custom build/toJson + reserved-key rejection on device",
                 marker["config_ok"],
                 "missing SMOKE:config-ok marker",
             )

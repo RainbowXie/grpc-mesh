@@ -22,7 +22,7 @@
 ## 4. 集成与兼容性验收
 
 - [x] 4.1 使用本仓完整测试 Server 捕获 Java→JNI→Rust 的真实 TLS/yamux 握手，断言自定义 feature、metadata 原值及注册/替换/注销后的方法清单，验证正常停止关闭；保留 key 测试确认拒绝且不建立连接。
-- [ ] 4.2 在真实最低支持的 arm64-v8a Android 10/API 29 设备（不启用 core library desugaring）上用最终产物运行默认和自定义 build/toJson 测试及 JNI payload/并发/关闭回归，保存日志；执行 lint/API 引用检查。不用强制安装绕过 SDK 下限；若 LAN 不通可用标准 adb reverse 并记录前置。原高版本结果不算入 API 29 验收。
+- [x] 4.2 在真实最低支持的 arm64-v8a Android 10/API 29 设备（不启用 core library desugaring）上用最终产物运行默认和自定义 build/toJson 测试及 JNI payload/并发/关闭回归，保存日志；执行 lint/API 引用检查。不用强制安装绕过 SDK 下限；若 LAN 不通可用标准 adb reverse 并记录前置。原高版本结果不算入 API 29 验收。
 - [x] 4.3 重新执行 JVM、Rust、C ABI harness/header/symbol 与既有 Android payload/并发/关闭回归，记录命令、输入、stdout/stderr、退出码和测试数量；确认没有用旧缓存或高版本设备结果替代新测试。
 
 ## 5. 文档、版本和可发布产物
