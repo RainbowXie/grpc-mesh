@@ -33,5 +33,5 @@
 
 ## 6. 审查与结单
 
-- [ ] 6.1 执行代码审查与前提反证，重点挑战 Android 10/API 29+ 支持范围声明、所有入口保留 key 保护、metadata 逐字符保真及方法清单权威性；对阻塞 findings 修复并递归复审，提交前完成 GitNexus detect_changes。
-- [ ] 6.2 核对父仓/子仓最终提交、gitlink、任务证据与产物 manifest，运行 openspec validate java-handshake-config-safety --strict 并完成实现验收；以 git 提交与测试证据结单，不再生成已删除的四角色回滚材料；未完成真实验证或版本交付时保持对应任务未勾选，不自动归档或发布。
+- [x] 6.1 执行代码审查与前提反证，重点挑战 Android 10/API 29+ 支持范围声明、所有入口保留 key 保护、metadata 逐字符保真及方法清单权威性；对阻塞 findings 修复并递归复审，提交前完成 GitNexus detect_changes。
+- [x] 6.2 核对父仓/子仓最终提交、gitlink、任务证据与产物 manifest，运行 openspec validate java-handshake-config-safety --strict 并完成实现验收；以 git 提交与测试证据结单，不再生成已删除的四角色回滚材料；未完成真实验证或版本交付时保持对应任务未勾选，不自动归档或发布。
