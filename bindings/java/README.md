@@ -72,11 +72,11 @@ NodeConfig config = NodeConfig.builder()
   and passes non-ASCII text through as UTF-8.
 
 These APIs use a plain defensive-copy implementation and do **not** require
-core library desugaring. The binding now targets Android 12/`minSdk 31`
-(the user raised the floor from API 24, so API 24–30 are out of scope). No
-capability allow-list, extra protocol
-field or new C ABI symbol is involved: the two fields map onto the existing
-`node.features` / `node.metadata` JSON keys and C ABI v1.
+core library desugaring. The binding targets Android 12/`minSdk 31` (the user
+raised the floor from API 24, so API 24–30 are out of scope). No capability
+allow-list, extra protocol field or new C ABI symbol is involved: the two
+fields map onto the existing `node.features` / `node.metadata` JSON keys and
+C ABI v1.
 
 ### Migration for reserved metadata keys
 
