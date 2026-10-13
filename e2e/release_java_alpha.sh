@@ -16,7 +16,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/dist/node-java-alpha}"
 SDK="${ANDROID_HOME:-/home/ethan/Android/Sdk}"
-VERSION="${JAVA_BINDING_VERSION:-0.1.0-alpha1}"
+VERSION="${JAVA_BINDING_VERSION:-0.1.0-alpha3}"
 
 PARENT_COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 NODE_COMMIT="$(git -C "$ROOT/grpc-mesh-node" rev-parse HEAD)"

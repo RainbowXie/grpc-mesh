@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "io.grpc-mesh"
-version = providers.gradleProperty("bindingVersion").orElse("0.1.0-alpha1").get()
+version = providers.gradleProperty("bindingVersion").orElse("0.1.0-alpha3").get()
 
 java {
     toolchain {
@@ -19,6 +19,8 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // Standard JSON parser for asserting the wire shape of NodeConfig.toJson().
+    testImplementation("com.google.code.gson:gson:2.11.0")
 }
 
 tasks.test {
