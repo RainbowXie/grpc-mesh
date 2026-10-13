@@ -23,13 +23,13 @@
 
 - [x] 4.1 使用本仓完整测试 Server 捕获 Java→JNI→Rust 的真实 TLS/yamux 握手，断言自定义 feature、metadata 原值及注册/替换/注销后的方法清单，验证正常停止关闭；保留 key 测试确认拒绝且不建立连接。
 - [ ] 4.2 在不启用 core library desugaring 的 API 24/API 30 消费工程运行默认和自定义 build/toJson 测试，保存日志；执行 lint/API 引用检查，三种证据均满足才判定 Android 兼容性通过。
-- [ ] 4.3 重新执行 JVM、Rust、C ABI harness/header/symbol 与既有 Android payload/并发/关闭回归，记录命令、输入、stdout/stderr、退出码和测试数量；确认没有用旧缓存或高版本设备结果替代新测试。
+- [x] 4.3 重新执行 JVM、Rust、C ABI harness/header/symbol 与既有 Android payload/并发/关闭回归，记录命令、输入、stdout/stderr、退出码和测试数量；确认没有用旧缓存或高版本设备结果替代新测试。
 
 ## 5. 文档、版本和可发布产物
 
 - [x] 5.1 更新 Java README/API 注释和原生配置说明，包含通用 feature/metadata 示例、原值保留、三个保留 key、最低 Android 版本和迁移规则；逐项与 spec 对照，确保不宣称已验证外部业务筛选因果。
-- [ ] 5.2 选定下一个未使用 binding Alpha 版本，统一 Gradle/发布脚本/示例版本，用 clean-source archive 构建 AAR、原生库、header、manifest 和 SHA256SUMS，核验版本、父仓提交、Node gitlink 与全部哈希一致，不替换 Alpha2。
-- [ ] 5.3 用最终产物而非源码路径运行消费方 E2E，确认新增 Builder API 和原生保护来自同一版本，保存产物路径/哈希及通过日志；上传发布仅在用户另行授权后执行。
+- [x] 5.2 选定下一个未使用 binding Alpha 版本，统一 Gradle/发布脚本/示例版本，用 clean-source archive 构建 AAR、原生库、header、manifest 和 SHA256SUMS，核验版本、父仓提交、Node gitlink 与全部哈希一致，不替换 Alpha2。
+- [x] 5.3 用最终产物而非源码路径运行消费方 E2E，确认新增 Builder API 和原生保护来自同一版本，保存产物路径/哈希及通过日志；上传发布仅在用户另行授权后执行。
 
 ## 6. 审查与结单
 
