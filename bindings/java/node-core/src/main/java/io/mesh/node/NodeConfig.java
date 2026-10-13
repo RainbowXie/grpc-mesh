@@ -1,6 +1,8 @@
 package io.mesh.node;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -20,6 +22,11 @@ public final class NodeConfig {
     private final long reconnectBaseDelayMs;
     private final long reconnectMaxDelayMs;
     private final long stopGraceSeconds;
+    /** Feature tags reported in the handshake（服务端按 capability 过滤可用节点，如 {@code dg}）。
+     *  为什么显式建模：C ABI 的 node.features 是握手通告面，缺失则服务端 isEligibleByCapability 永远不命中。 */
+    private final List<String> features;
+    /** Extra handshake metadata entries（服务端 hasCapability 的第二合格路）。 */
+    private final Map<String, String> metadata;
 
     private NodeConfig(Builder builder) {
         this.serverAddress = builder.serverAddress;
@@ -33,6 +40,8 @@ public final class NodeConfig {
         this.reconnectBaseDelayMs = builder.reconnectBaseDelayMs;
         this.reconnectMaxDelayMs = builder.reconnectMaxDelayMs;
         this.stopGraceSeconds = builder.stopGraceSeconds;
+        this.features = List.copyOf(builder.features);
+        this.metadata = Map.copyOf(builder.metadata);
     }
 
     public static Builder builder() {
@@ -107,6 +116,12 @@ public final class NodeConfig {
         node.put("id", notNull(nodeId, "nodeId"));
         node.put("token", notNull(token, "token"));
         node.put("version", version);
+        if (!features.isEmpty()) {
+            node.put("features", features);
+        }
+        if (!metadata.isEmpty()) {
+            node.put("metadata", metadata);
+        }
         Map<String, Object> heartbeat = new LinkedHashMap<>();
         heartbeat.put("interval_secs", heartbeatIntervalSeconds);
         Map<String, Object> connect = new LinkedHashMap<>();
@@ -159,6 +174,8 @@ public final class NodeConfig {
         static void writeValue(Object value, StringBuilder out) {
             if (value instanceof Map<?, ?> map) {
                 writeMap(castMap(map), out);
+            } else if (value instanceof List<?> list) {
+                writeArray(list, out);
             } else if (value instanceof String string) {
                 writeString(string, out);
             } else if (value instanceof Number || value instanceof Boolean) {
@@ -173,6 +190,18 @@ public final class NodeConfig {
             return (Map<String, Object>) map;
         }
 
+        static void writeArray(List<?> value, StringBuilder out) {
+            out.append('[');
+            boolean first = true;
+            for (Object item : value) {
+                if (!first) {
+                    out.append(',');
+                }
+                first = false;
+                writeValue(item, out);
+            }
+            out.append(']');
+        }
         static void writeString(String value, StringBuilder out) {
             out.append('"');
             for (int i = 0; i < value.length(); i++) {
@@ -210,6 +239,26 @@ public final class NodeConfig {
         private long reconnectBaseDelayMs = 250;
         private long reconnectMaxDelayMs = 30_000;
         private long stopGraceSeconds = 2;
+        private final List<String> features = new ArrayList<>();
+        private final Map<String, String> metadata = new LinkedHashMap<>();
+
+        /** 追加一条握手 metadata（服务端 hasCapability 的第二合格路，如 capability→dg）。 */
+        public Builder addMetadata(String key, String value) {
+            if (key == null || key.trim().isEmpty()) {
+                throw new NodeConfigException("metadata key must be non-empty");
+            }
+            metadata.put(key.trim(), value == null ? "" : value.trim());
+            return this;
+        }
+
+        /** 追加一个握手 feature tag（如 {@code dg}），服务端按 capability 匹配选节点。 */
+        public Builder addFeature(String feature) {
+            if (feature == null || feature.trim().isEmpty()) {
+                throw new NodeConfigException("feature must be non-empty");
+            }
+            features.add(feature.trim());
+            return this;
+        }
 
         /** Server address in {@code host:port} form (required). */
         public Builder serverAddress(String serverAddress) {
